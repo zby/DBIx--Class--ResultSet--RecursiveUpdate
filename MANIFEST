@@ -1,0 +1,23 @@
+Changes
+MANIFEST
+Makefile.PL
+README
+lib/DBIx/Class/ResultSet/RecursiveUpdate.pm
+t/00.load.t
+t/pod-coverage.t
+t/pod.t
+t/lib/MySchema/Test.pm
+t/lib/DBSchema.pm
+t/lib/RunTests.pm
+t/lib/DBSchema/Result/User.pm
+t/lib/DBSchema/Result/Dvd.pm
+t/lib/DBSchema/Result/Tag.pm
+t/lib/DBSchema/Result/LinerNotes.pm
+t/lib/DBSchema/Result/Dvdtag.pm
+t/lib/DBSchema/Result/UserRole.pm
+t/lib/DBSchema/Result/Role.pm
+t/lib/MySchema.pm
+t/var/dvdzbr.db
+t/pg.t
+t/sqlite.t
+META.yml                                 Module meta-data (added by MakeMaker)
