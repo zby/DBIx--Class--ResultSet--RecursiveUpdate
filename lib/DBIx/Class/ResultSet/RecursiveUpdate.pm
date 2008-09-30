@@ -12,7 +12,8 @@ sub recursive_update {
     my( $self, $updates ) = @_;
     my $object;
     # this is a workaround for a bug in the svn version 4794 
-    if ( ref $self->{cond} eq 'ARRAY' and ref $self->{cond}[0] eq 'SCALAR' ){
+#    if ( ref $self->{cond} eq 'ARRAY' and ref $self->{cond}[0] eq 'SCALAR' ){
+    if ( ref $self->{cond} eq 'SCALAR' ){
         $self->{cond} = {};
         $object = $self->new( {} );
     }
@@ -20,8 +21,10 @@ sub recursive_update {
         $object = $self->find( $updates, { key => 'primary' } ) || $self->new( {} );
     }
 
-    for my $name ( keys %$updates ){ if($object->can($name)){
+    for my $name ( keys %$updates ){ 
+        if($object->can($name)){
             my $value = $updates->{$name};
+
             # updating relations that that should be done before the row is inserted into the database
             # like belongs_to
             if( $object->result_source->has_relationship($name) 
@@ -34,7 +37,6 @@ sub recursive_update {
                     _master_relation_cond( $object, $info->{cond}, _get_pk_for_related( $object, $name ) )
                 ){
                     my $related_result = $object->related_resultset( $name );
-                    $DB::single = 1;
                     my $sub_object = $related_result->recursive_update( $value );
                     $object->set_from_related( $name, $sub_object );
                 }
@@ -197,12 +199,22 @@ Then:
     put 'undef' for the key value - this is then removed
     and a correct INSERT statement is generated.  
 
+    For a many_to_many (pseudo) relation you can supply a list of primary keys
+    from the other table - and it will link the record at hand to those and
+    only those records identified by them.  This is convenient for handling web
+    forms with check boxes (or a SELECT box with multiple choice) that let you
+    update such (pseudo) relations.
+
     For a description how to set up base classes for ResultSets see load_namespaces
     in DBIx::Class::Schema.
 
+    The support for many to many pseudo relationships should be treated as prototype -
+    the DBIC author disagrees with the way I did it.
+
+
 =head1 INTERFACE 
 
-=for author to fill in:
+=for uthor to fill in:
 
 =head1 METHODS
 
