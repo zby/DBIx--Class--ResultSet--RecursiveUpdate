@@ -11,15 +11,7 @@ use base qw(DBIx::Class::ResultSet);
 sub recursive_update { 
     my( $self, $updates ) = @_;
     my $object;
-    # this is a workaround for a bug in the svn version 4794 
-#    if ( ref $self->{cond} eq 'ARRAY' and ref $self->{cond}[0] eq 'SCALAR' ){
-    if ( ref $self->{cond} eq 'SCALAR' ){
-        $self->{cond} = {};
-        $object = $self->new( {} );
-    }
-    else {
-        $object = $self->find( $updates, { key => 'primary' } ) || $self->new( {} );
-    }
+    $object = $self->find( $updates, { key => 'primary' } ) || $self->new( {} );
 
     for my $name ( keys %$updates ){ 
         if($object->can($name)){
