@@ -43,7 +43,7 @@ sub recursive_update {
         }
         #warn Dumper($object->{_column_data}); use Data::Dumper;
     }
-    _delete_empty_auto_increment($object);
+    $self->_delete_empty_auto_increment($object);
     $object->update_or_insert;
 
     # updating relations that can be done only after the row is inserted into the database
@@ -99,7 +99,7 @@ sub get_m2m_source {
 
  
 sub _delete_empty_auto_increment {
-    my ( $object ) = @_;
+    my ( $self, $object ) = @_;
     for my $col ( keys %{$object->{_column_data}}){
         if( $object->result_source->column_info( $col )->{is_auto_increment} 
                 and 
@@ -160,7 +160,7 @@ DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but recursive
 
 =head1 VERSION
 
-This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.0.1
+This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.001
 
 
 =head1 SYNOPSIS
@@ -185,30 +185,66 @@ Then:
   
 =head1 DESCRIPTION
 
-    You can feed the ->create method with a recursive datastructure and have the related records
-    created.  Unfortunately you cannot do a similar thing with update_or_create - this module
-    tries to fill that void. 
+You can feed the ->create method with a recursive datastructure and have the related records
+created.  Unfortunately you cannot do a similar thing with update_or_create - this module
+tries to fill that void. 
 
-    It is a base class for ResultSets providing just one method: recursive_update
-    which works just like update_or_create but can recursively update or create
-    data objects composed of multiple rows. All rows need to be identified by primary keys
-    - so you need to provide them in the update structure (unless they can be deduced from 
-    the parent row - for example when you have a belongs_to relationship).  
-    When creating new rows in a table with auto_increment primary keys you need to 
-    put 'undef' for the key value - this is then removed
-    and a correct INSERT statement is generated.  
+It is a base class for ResultSets providing just one method: recursive_update
+which works just like update_or_create but can recursively update or create
+data objects composed of multiple rows. All rows need to be identified by primary keys
+- so you need to provide them in the update structure (unless they can be deduced from 
+the parent row - for example when you have a belongs_to relationship).  
+When creating new rows in a table with auto_increment primary keys you need to 
+put 'undef' for the key value - this is then removed
+and a correct INSERT statement is generated.  
 
-    For a many_to_many (pseudo) relation you can supply a list of primary keys
-    from the other table - and it will link the record at hand to those and
-    only those records identified by them.  This is convenient for handling web
-    forms with check boxes (or a SELECT box with multiple choice) that let you
-    update such (pseudo) relations.
+For a many_to_many (pseudo) relation you can supply a list of primary keys
+from the other table - and it will link the record at hand to those and
+only those records identified by them.  This is convenient for handling web
+forms with check boxes (or a SELECT box with multiple choice) that let you
+update such (pseudo) relations.
 
-    For a description how to set up base classes for ResultSets see load_namespaces
-    in DBIx::Class::Schema.
+For a description how to set up base classes for ResultSets see load_namespaces
+in DBIx::Class::Schema.
 
-    The support for many to many pseudo relationships should be treated as prototype -
-    the DBIC author disagrees with the way I did it.
+=head1 DESIGN CHOICES
+
+=head2 Treatment of many to many pseudo relations
+
+Matt Trout expressed following criticism of the support for many to many in
+RecursiveUpdate and since this is an extension of his DBIx::Class I feel obliged to
+reply to it.  It is about two points leading in his opinion to 'fragile and
+implicitely broken code'. 
+
+1. That I rely on the fact that
+
+ if($object->can($name) and
+             !$object->result_source->has_relationship($name) and
+             $object->can( 'set_' . $name )
+         )
+
+then $name must be a many to many pseudo relation.  And that in a
+similarly ugly was I find out what is the ResultSource of objects from
+that many to many pseudo relation.
+
+2. That I treat uniformly relations and many to many (which are
+different from relations because they require traversal of the bridge
+table).
+
+To answer 1) I've refactored that 'dirty' code into is_m2m and get_m2m_source so
+that it can be easily overridden.  I agree that this code is not too nice - but
+currenlty it is the only way to do what I need - and I'll replace it as soon as
+there is a more clean way.  I don't think it is extremely brittle - sure it will
+break if many to many (pseudo) relations don't get 'set_*' methods anymore - but
+I would say it is rather justified for this kind of change in underlying library
+to break it.
+
+
+Ad 2) - first this is not strictly true - RecursiveUpdate does have
+different code to cope with m2m and other cases (see the point above for
+example) - but it let's the user to treat m2m and 'normal' relations in a
+uniform way.  I consider this a form of abstraction - it is the work that
+RecursiveUpdate does for the programmer.
 
 
 =head1 INTERFACE 
