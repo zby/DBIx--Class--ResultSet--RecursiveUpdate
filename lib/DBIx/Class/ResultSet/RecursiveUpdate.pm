@@ -1,6 +1,6 @@
 package DBIx::Class::ResultSet::RecursiveUpdate;
 
-use version; $VERSION = qv('0.0.1');
+use version; $VERSION = qv('0.001');
 
 use warnings;
 use strict;
@@ -26,7 +26,7 @@ sub recursive_update {
                 my $info = $object->result_source->relationship_info( $name );
                 if( $info and not $info->{attrs}{accessor} eq 'multi'
                         and 
-                    _master_relation_cond( $object, $info->{cond}, _get_pk_for_related( $object, $name ) )
+                    _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) )
                 ){
                     my $related_result = $object->related_resultset( $name );
                     my $sub_object = $related_result->recursive_update( $value );
@@ -51,11 +51,8 @@ sub recursive_update {
     for my $name ( keys %$updates ){
         my $value = $updates->{$name};
         # many to many case
-        if($object->can($name) and 
-            !$object->result_source->has_relationship($name) and 
-            $object->can( 'set_' . $name )
-        ) {
-                my ( $pk ) = _get_pk_for_related( $object, $name );
+        if( $self->is_m2m( $name ) ) {
+                my ( $pk ) = $self->_get_pk_for_related( $name );
                 my @values = @{$updates->{$name}};
                 my @rows;
                 my $result_source = $object->$name->result_source;
@@ -72,7 +69,7 @@ sub recursive_update {
                 }
             }
             # might_have and has_one case
-            elsif ( ! _master_relation_cond( $object, $info->{cond}, _get_pk_for_related( $object, $name ) ) ){
+            elsif ( ! _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
                 my $sub_object = $object->search_related( $name )->recursive_update( $value );
                 #$object->set_from_related( $name, $sub_object );
             }
@@ -81,6 +78,26 @@ sub recursive_update {
     return $object;
 }
 
+sub is_m2m {
+    my( $self, $relation ) = @_;
+    my $object = $self->new({});
+    if ( $object->can($relation) and 
+        !$object->result_source->has_relationship($relation) and 
+        $object->can( 'set_' . $relation)
+    ){
+        return 1;
+    }
+    return;
+}
+
+sub get_m2m_source {
+    my( $self, $relation ) = @_;
+    my $object = $self->new({});
+    my $r = $object->$relation;
+    return $r->result_source;
+}
+
+ 
 sub _delete_empty_auto_increment {
     my ( $object ) = @_;
     for my $col ( keys %{$object->{_column_data}}){
@@ -94,25 +111,17 @@ sub _delete_empty_auto_increment {
 }
 
 sub _get_pk_for_related {
-    my ( $object, $relation ) = @_;
+    my ( $self, $relation ) = @_;
 
-    my $rs = $object->result_source->resultset;
-    my $result_source = _get_related_source( $rs, $relation );
-    return $result_source->primary_columns;
-}
-
-sub _get_related_source {
-    my ( $rs, $name ) = @_;
-    if( $rs->result_source->has_relationship( $name ) ){
-        return $rs->result_source->related_source( $name );
+    my $result_source;
+    if( $self->result_source->has_relationship( $relation ) ){
+        $result_source = $self->result_source->related_source( $relation );
     }
     # many to many case
-    my $row = $rs->new({});
-    if ( $row->can( $name ) and $row->can( 'add_to_' . $name ) and $row->can( 'set_' . $name ) ){
-        my $r = $row->$name;
-        return $r->result_source;
+    if ( $self->is_m2m( $relation ) ) {
+        $result_source = $self->get_m2m_source( $relation );
     }
-    return;
+    return $result_source->primary_columns;
 }
 
 sub _master_relation_cond {
@@ -156,13 +165,11 @@ This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.0.1
 
 =head1 SYNOPSIS
 
-   __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
+    __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
 
 in the Schema file (see t/lib/DBSchema.pm).  Or appriopriate 'use base' in the ResultSet classes. 
 
 Then:
-
-=for author to fill in:
 
     my $user = $user_rs->recursive_update( { 
         id => 1, 
@@ -178,10 +185,10 @@ Then:
   
 =head1 DESCRIPTION
 
-=for author to fill in:
     You can feed the ->create method with a recursive datastructure and have the related records
     created.  Unfortunately you cannot do a similar thing with update_or_create - this module
     tries to fill that void. 
+
     It is a base class for ResultSets providing just one method: recursive_update
     which works just like update_or_create but can recursively update or create
     data objects composed of multiple rows. All rows need to be identified by primary keys
@@ -206,32 +213,33 @@ Then:
 
 =head1 INTERFACE 
 
-=for uthor to fill in:
-
 =head1 METHODS
 
 =head2 recursive_update
 
-The only method here.
+The method that does the work here.
+
+=head2 is_m2m
+
+$self->is_m2m( 'name ' ) - answers the question if 'name' is a many to many
+(pseudo) relation on $self.
+
+=head2 get_m2m_source
+
+$self->get_m2m_source( 'name' ) - returns the ResultSource linked to by the many
+to many (pseudo) relation 'name' from $self.
+
 
 =head1 DIAGNOSTICS
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-=for author to fill in:
- 
 DBIx::Class::RecursiveUpdate requires no configuration files or environment variables.
-
 
 =head1 DEPENDENCIES
 
-=for author to fill in:
-
     DBIx::Class
-
-None.
-
 
 =head1 INCOMPATIBILITIES
 
