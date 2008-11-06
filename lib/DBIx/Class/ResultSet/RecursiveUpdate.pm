@@ -44,6 +44,8 @@ sub recursive_update {
         #warn Dumper($object->{_column_data}); use Data::Dumper;
     }
     $self->_delete_empty_auto_increment($object);
+    # don't allow insert to recurse to related objects - we do the recursion ourselves
+    $object->{_rel_in_storage} = 1;
     $object->update_or_insert;
 
     # updating relations that can be done only after the row is inserted into the database
