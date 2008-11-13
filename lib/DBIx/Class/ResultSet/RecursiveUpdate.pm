@@ -55,10 +55,16 @@ sub recursive_update {
         # many to many case
         if( $self->is_m2m( $name ) ) {
                 my ( $pk ) = $self->_get_pk_for_related( $name );
-                my @values = @{$updates->{$name}};
                 my @rows;
                 my $result_source = $object->$name->result_source;
-                @rows = $result_source->resultset->search({ $pk => [ @values ] } ) if @values; 
+                for my $elem ( @{$updates->{$name}} ){
+                    if( ref $elem ){
+                        push @rows, $result_source->resultset->find( $elem );
+                    }
+                    else{
+                        push @rows, $result_source->resultset->find( { $pk => $elem } );
+                    }
+                }
                 my $set_meth = 'set_' . $name;
                 $object->$set_meth( \@rows );
         }

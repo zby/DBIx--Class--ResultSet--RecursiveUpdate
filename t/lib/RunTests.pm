@@ -18,7 +18,7 @@ sub run_tests{
     my $updates = {
             id => undef,
             aaaa => undef,
-            tags => [ '2', '3' ], 
+            tags => [ '2', { id => '3' } ], 
             name => 'Test name',
     #        'creation_date.year' => 2002,
     #        'creation_date.month' => 1,
