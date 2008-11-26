@@ -12,6 +12,7 @@ WriteMakefile(
         'Test::More' => 0,
         'version'    => 0,
         'DBIx::Class' => 0,
+        'DBIx::Class::IntrospectableM2M' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'DBIx-Class-ResultSet-RecursiveUpdate-*' },

@@ -88,9 +88,14 @@ sub recursive_update {
 
 sub is_m2m {
     my( $self, $relation ) = @_;
+    my $rclass = $self->result_class;
+    # DBIx::Class::IntrospectableM2M
+    if( $rclass->can( '_m2m_metadata' ) ){
+        return $rclass->_m2m_metadata->{$relation};
+    }
     my $object = $self->new({});
     if ( $object->can($relation) and 
-        !$object->result_source->has_relationship($relation) and 
+        !$self->result_source->has_relationship($relation) and 
         $object->can( 'set_' . $relation)
     ){
         return 1;
@@ -100,6 +105,17 @@ sub is_m2m {
 
 sub get_m2m_source {
     my( $self, $relation ) = @_;
+    my $rclass = $self->result_class;
+    # DBIx::Class::IntrospectableM2M
+    if( $rclass->can( '_m2m_metadata' ) ){
+        return $self->result_source
+        ->related_source( 
+            $rclass->_m2m_metadata->{$relation}{relation}
+        )
+        ->related_source( 
+            $rclass->_m2m_metadata->{$relation}{foreign_relation} 
+        );
+    }
     my $object = $self->new({});
     my $r = $object->$relation;
     return $r->result_source;

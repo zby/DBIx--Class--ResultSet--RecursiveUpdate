@@ -9,7 +9,7 @@ use base 'DBIx::Class';
 use overload '""' => sub {$_[0]->name}, fallback => 1;
 
 use lib '../../DBIx-Class-HTML-FormFu/lib/';
-__PACKAGE__->load_components('Core');
+__PACKAGE__->load_components(qw/IntrospectableM2M Core/);
 __PACKAGE__->table('dvd');
 __PACKAGE__->add_columns(
   'id' => {
