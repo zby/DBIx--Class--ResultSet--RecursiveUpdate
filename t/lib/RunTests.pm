@@ -5,14 +5,34 @@ use Exporter 'import'; # gives you Exporter's import() method directly
 use strict;
 use Test::More; 
 
-
 sub run_tests{
     my $schema = shift;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
-    my $owner = $schema->resultset( 'User' )->first;
-    my $initial_user_count = $schema->resultset( 'User' )->count;
+    my $user_rs = $schema->resultset( 'User' );
+
+    my $owner = $user_rs->next;
+    my $another_owner = $user_rs->next;
+    my $initial_user_count = $user_rs->count;
    
+    # creating new record linked to some old record
+    
+    my $updates;
+    $updates = {
+            id => undef,
+            name => 'Test name 2',
+            viewings => [ { user_id => $owner->id } ],
+            owner => { id => $owner->id },
+    };
+    
+    my $new_dvd = $dvd_rs->recursive_update( $updates );
+#    my $new_dvd = $dvd_rs->create( $updates );
+   
+    is ( $schema->resultset( 'User' )->count, $initial_user_count, "No new user created" );
+    is ( $new_dvd->name, 'Test name 2', 'Dvd name set' );
+    is ( $new_dvd->owner->id, $owner->id, 'Owner set' );
+#    is ( $new_dvd->viewing->user_id, $owner->id, 'Viewing created' );
+;    
     # creating new records
     
     my $updates = {
@@ -20,44 +40,40 @@ sub run_tests{
             aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
-    #        'creation_date.year' => 2002,
-    #        'creation_date.month' => 1,
-    #        'creation_date.day' => 3,
-    #        'creation_date.hour' => 4,
-    #        'creation_date.minute' => 33,
-    #        'creation_date.pm' => 1,
-            owner => $owner->id,
+            owner => $owner,
             current_borrower => {
                 name => 'temp name',
                 username => 'temp name',
                 password => 'temp name',
             },
             liner_notes => {
-                
                 notes => 'test note',
-            }
+            },
+            like_has_many => [
+            { key2 => 1 }
+            ],
     };
     
     my $dvd = $dvd_rs->recursive_update( $updates );
-   
+;   
     is ( $schema->resultset( 'User' )->count, $initial_user_count + 1, "One new user created" );
     is ( $dvd->name, 'Test name', 'Dvd name set' );
     is_deeply ( [ map {$_->id} $dvd->tags ], [ '2', '3' ], 'Tags set' );
-    #my $value = $dvd->creation_date;
-    #is( "$value", '2002-01-03T16:33:00', 'Date set');
     is ( $dvd->owner->id, $owner->id, 'Owner set' );
     
     is ( $dvd->current_borrower->name, 'temp name', 'Related record created' );
     is ( $dvd->liner_notes->notes, 'test note', 'might_have record created' );
-    
+    ok ( $schema->resultset( 'Twokeys' )->find( { dvd_name => 'Test name', key2 => 1 } ), 'Twokeys created' );
+
     # changing existing records
     
+    my $num_of_users = $user_rs->count;
     $updates = {
             id => $dvd->id,
             aaaa => undef,
             name => 'Test name',
             tags => [ ], 
-            'owner' => $owner->id,
+            'owner' => $another_owner->id,
             current_borrower => {
                 username => 'new name a',
                 name => 'new name a',
@@ -68,7 +84,7 @@ sub run_tests{
     
     is ( $schema->resultset( 'User' )->count, $initial_user_count + 1, "No new user created" );
     is ( $dvd->name, 'Test name', 'Dvd name set' );
-    is ( $dvd->owner->id, $owner->id, 'Owner set' );
+    is ( $dvd->owner->id, $another_owner->id, 'Owner updated' );
     is ( $dvd->current_borrower->name, 'new name a', 'Related record modified' );
     is ( $dvd->tags->count, 0, 'Tags deleted' );
 
@@ -93,7 +109,6 @@ sub run_tests{
         ]
     };
     
-    my $user_rs = $schema->resultset( 'User' );
     my $user = $user_rs->recursive_update( $updates );
     my %owned_dvds = map { $_->name => $_ } $user->owned_dvds;
     is( scalar keys %owned_dvds, 2, 'Has many relations created' );
@@ -101,4 +116,5 @@ sub run_tests{
     my @tags = $owned_dvds{'temp name 1'}->tags;
     is( scalar @tags, 2, 'Tags in has_many related record saved' );
     ok( $owned_dvds{'temp name 2'}, 'Second name in a has_many related record saved' );
+
 }    

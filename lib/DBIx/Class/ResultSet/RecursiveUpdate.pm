@@ -5,13 +5,30 @@ use version; $VERSION = qv('0.001');
 use warnings;
 use strict;
 use Carp;
+use Scalar::Util qw( blessed );
 
 use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update { 
-    my( $self, $updates ) = @_;
+    my( $self, $updates, $fixed_fields ) = @_;
+    if( blessed( $updates ) && $updates->isa( 'DBIx::Class::Row' ) ){
+        return $updates;
+    }
     my $object;
-    $object = $self->find( $updates, { key => 'primary' } ) || $self->new( {} );
+#    warn 'cond: ' . Dumper( $self->{cond} ); use Data::Dumper;
+#    warn 'where: ' . Dumper( $self->{attrs}{where} ); use Data::Dumper;
+    my @missing = grep { !exists $updates->{$_} && !exists $fixed_fields->{$_} } $self->result_source->primary_columns;
+    if( defined $self->{cond} && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $self->{cond} ){
+        $self->{cond} = undef;
+        $self->{attrs}{where} = undef;
+        if( ! scalar @missing ){
+            $object = $self->find( $updates, { key => 'primary' } );
+        }
+    }
+    else{
+        $object = $self->find( $updates, { key => 'primary' } );
+    }
+    $object ||= $self->new( {} );
 
     for my $name ( keys %$updates ){ 
         if($object->can($name)){
@@ -46,6 +63,7 @@ sub recursive_update {
     $self->_delete_empty_auto_increment($object);
     # don't allow insert to recurse to related objects - we do the recursion ourselves
     $object->{_rel_in_storage} = 1;
+#    warn Dumper( $object->{_column_data} );
     $object->update_or_insert;
 
     # updating relations that can be done only after the row is inserted into the database
@@ -70,7 +88,7 @@ sub recursive_update {
         }
         elsif( $object->result_source->has_relationship($name) ){
             my $info = $object->result_source->relationship_info( $name );
-            # has many case
+            # has many case (and similar)
             if( ref $updates->{$name} eq 'ARRAY' ){
                 for my $sub_updates ( @{$updates->{$name}} ) {
                     my $sub_object = $object->search_related( $name )->recursive_update( $sub_updates );
@@ -170,8 +188,6 @@ sub _master_relation_cond {
     }
     return;
 }
-
-# Module implementation here
 
 
 1; # Magic true value required at end of module

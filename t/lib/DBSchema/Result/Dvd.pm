@@ -42,14 +42,16 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('id');
-__PACKAGE__->belongs_to('owner', 'User', { id => 'owner' });
-__PACKAGE__->belongs_to('current_borrower', 'User', { id => 'current_borrower' });
+__PACKAGE__->belongs_to('owner', 'DBSchema::Result::User', { id => 'owner' });
+__PACKAGE__->belongs_to('current_borrower', 'DBSchema::Result::User', { id => 'current_borrower' });
 __PACKAGE__->has_many('dvdtags', 'Dvdtag', { 'foreign.dvd' => 'self.id' });
+__PACKAGE__->has_many('viewings', 'Viewing', { 'foreign.dvd_id' => 'self.id' });
 __PACKAGE__->many_to_many('tags', 'dvdtags' => 'tag');
 __PACKAGE__->might_have(
     liner_notes => 'DBSchema::Result::LinerNotes', undef,
     { proxy => [ qw/notes/ ] },
 );
+__PACKAGE__->add_relationship('like_has_many', 'DBSchema::Result::Twokeys', { 'foreign.dvd_name' => 'self.name' }, { accessor_name => 'like_has_many' } );
 
 
 1;
