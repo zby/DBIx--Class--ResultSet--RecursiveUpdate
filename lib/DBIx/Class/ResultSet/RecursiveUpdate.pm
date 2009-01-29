@@ -30,39 +30,31 @@ sub recursive_update {
     }
     $object ||= $self->new( {} );
 
+    # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %$updates ){ 
-        if($object->can($name)){
-            my $value = $updates->{$name};
+        if( $self->is_for_column( $object, $name, $updates->{$name} ) ) {
+            $object->$name( $updates->{$name} );
+        }
+    }
+    for my $name ( keys %$updates ){ 
+        if($object->can($name) && !$self->is_for_column( $object, $name, $updates->{$name} ) ){
 
             # updating relations that that should be done before the row is inserted into the database
             # like belongs_to
-            if( $object->result_source->has_relationship($name) 
-                    and 
-                ref $value
-            ){
                 my $info = $object->result_source->relationship_info( $name );
                 if( $info and not $info->{attrs}{accessor} eq 'multi'
                         and 
                     _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) )
                 ){
                     my $related_result = $object->related_resultset( $name );
-                    my $sub_object = $related_result->recursive_update( $value );
+                    my $sub_object = $related_result->recursive_update( $updates->{$name} );
                     $object->set_from_related( $name, $sub_object );
                 }
-            }
-            # columns and other accessors
-            elsif( $object->result_source->has_column($name) 
-                    or 
-                !$object->can( 'set_' . $name ) 
-            ) {
-                $object->$name($value);
-            }
         }
-        #warn Dumper($object->{_column_data}); use Data::Dumper;
     }
     $self->_delete_empty_auto_increment($object);
     # don't allow insert to recurse to related objects - we do the recursion ourselves
-    $object->{_rel_in_storage} = 1;
+#    $object->{_rel_in_storage} = 1;
 #    warn Dumper( $object->{_column_data} );
     $object->update_or_insert;
 
@@ -102,6 +94,20 @@ sub recursive_update {
         }
     }
     return $object;
+}
+
+sub is_for_column { 
+    my( $self, $object, $name, $value ) = @_;
+    return 
+    $object->can($name)
+    && !( 
+        $object->result_source->has_relationship($name)
+        && ref( $value )
+    )
+    && ( 
+        $object->result_source->has_column($name)
+        || !$object->can( 'set_' . $name )
+    )
 }
 
 sub is_m2m {
