@@ -47,6 +47,10 @@ sub recursive_update {
                     _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) )
                 ){
                     my $related_result = $object->related_resultset( $name );
+                    my $resolved =  $self->result_source->resolve_condition(
+                        $info->{cond}, $name, $object
+                    );
+#                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
                     my $sub_object = $related_result->recursive_update( $updates->{$name} );
                     $object->set_from_related( $name, $sub_object );
                 }
