@@ -14,12 +14,12 @@ sub run_tests{
     my $owner = $user_rs->next;
     my $another_owner = $user_rs->next;
     my $initial_user_count = $user_rs->count;
+    my $initial_dvd_count = $dvd_rs->count;
    
     # creating new record linked to some old record
     
     my $updates;
     $updates = {
-            id => undef,
             name => 'Test name 2',
             viewings => [ { user_id => $owner->id } ],
             owner => { id => $owner->id },
@@ -27,16 +27,16 @@ sub run_tests{
     
     my $new_dvd = $dvd_rs->recursive_update( $updates );
 #    my $new_dvd = $dvd_rs->create( $updates );
-   
+  
+    ok ( $new_dvd->isa( 'DBSchema::Result::Dvd' ), 'Dvd created' );
+    is ( $dvd_rs->count, $initial_dvd_count + 1, 'Dvd created' );
     is ( $schema->resultset( 'User' )->count, $initial_user_count, "No new user created" );
     is ( $new_dvd->name, 'Test name 2', 'Dvd name set' );
     is ( $new_dvd->owner->id, $owner->id, 'Owner set' );
-#    is ( $new_dvd->viewing->user_id, $owner->id, 'Viewing created' );
+    is ( $new_dvd->viewings->count, 1, 'Viewing created' );
 ;    
     # creating new records
-    
     my $updates = {
-            id => undef,
             aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
@@ -56,6 +56,7 @@ sub run_tests{
     
     my $dvd = $dvd_rs->recursive_update( $updates );
 ;   
+    is ( $dvd_rs->count, $initial_dvd_count + 2, 'Dvd created' );
     is ( $schema->resultset( 'User' )->count, $initial_user_count + 1, "One new user created" );
     is ( $dvd->name, 'Test name', 'Dvd name set' );
     is_deeply ( [ map {$_->id} $dvd->tags ], [ '2', '3' ], 'Tags set' );
@@ -64,7 +65,6 @@ sub run_tests{
     is ( $dvd->current_borrower->name, 'temp name', 'Related record created' );
     is ( $dvd->liner_notes->notes, 'test note', 'might_have record created' );
     ok ( $schema->resultset( 'Twokeys' )->find( { dvd_name => 'Test name', key2 => 1 } ), 'Twokeys created' );
-
     # changing existing records
     
     my $num_of_users = $user_rs->count;
