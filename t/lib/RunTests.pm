@@ -20,6 +20,7 @@ sub run_tests{
     
     my $updates;
     $updates = {
+        id => undef,
             name => 'Test name 2',
             viewings => [ { user_id => $owner->id } ],
             owner => { id => $owner->id },
@@ -37,6 +38,7 @@ sub run_tests{
 ;    
     # creating new records
     my $updates = {
+        id => undef,
             aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
