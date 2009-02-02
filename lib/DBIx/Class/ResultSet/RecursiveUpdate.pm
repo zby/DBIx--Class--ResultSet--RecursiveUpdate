@@ -11,23 +11,44 @@ use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update { 
     my( $self, $updates, $fixed_fields ) = @_;
-#    warn 'entering: ' . $self->result_source->from();
+    # warn 'entering: ' . $self->result_source->from();
     if( blessed( $updates ) && $updates->isa( 'DBIx::Class::Row' ) ){
         return $updates;
     }
-    my $object;
-#    warn 'fixed_fields: ' . Dumper( $fixed_fields ); use Data::Dumper;
     if( $fixed_fields ){
         carp if !( ref( $fixed_fields ) eq 'HASH' );
         $updates = { %$updates, %$fixed_fields };
     }
+    # direct column accessors
     my %columns;
+    
+    # relations that that should be done before the row is inserted into the database
+    # like belongs_to
+    my %pre_updates;
+    
+    # relations that that should be done after the row is inserted into the database
+    # like has_many and might_have
+    my %post_updates;
     for my $name ( keys %$updates ){
-        if( $self->is_for_column( $name, $updates->{$name} ) ){
+        my $source = $self->result_source;
+        if( $source->has_column($name) 
+            && !( $source->has_relationship($name) && ref( $updates->{$name} ) ) 
+        ){
             $columns{$name} = $updates->{$name};
+            next;
+        }
+        next if ! $source->has_relationship($name);
+        my $info = $source->relationship_info( $name );
+        if( _master_relation_cond( $source, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
+            $pre_updates{$name} = $updates->{$name};
+        }
+        else{
+            $post_updates{$name} = $updates->{$name};
         }
     }
-#    warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
+    # warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
+    
+    my $object;
     my @missing = grep { !exists $columns{$_} } $self->result_source->primary_columns;
     if( ! scalar @missing ){
         $object = $self->find( \%columns, { key => 'primary' } );
@@ -38,45 +59,16 @@ sub recursive_update {
     for my $name ( keys %columns ){ 
         $object->$name( $updates->{$name} );
     }
-    for my $name ( keys %$updates ){ 
-        next if exists $columns{ $name };
-        if(
-            #$object->can($name) 
-            $object->result_source->has_relationship($name)
-            && !$self->is_for_column( $object, $name, $updates->{$name} ) 
-        ){
-            # updating relations that that should be done before the row is inserted into the database
-            # like belongs_to
-                my $info = $object->result_source->relationship_info( $name );
-                if( $info #and not $info->{attrs}{accessor} eq 'multi'
-                        and 
-                    _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) )
-                ){
-                    my $related_result = $self->related_resultset( $name )->result_source->resultset;
-                    my $resolved =  $self->result_source->resolve_condition(
-                        $info->{cond}, $name, $object
-                    );
-#                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
-                    $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
-                    if( ref $updates->{$name} eq 'ARRAY' ){
-                        for my $sub_updates ( @{$updates->{$name}} ) {
-                            my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
-                        }
-                    }
-                    else { 
-                        my $sub_object = $related_result->recursive_update( $updates->{$name}, $resolved );
-                        $object->set_from_related( $name, $sub_object );
-                    }
-                }
-        }
+    for my $name ( keys %pre_updates ){ 
+        my $info = $object->result_source->relationship_info( $name );
+        $self->update_relation( $name, $updates, $object, $info );
     }
     $self->_delete_empty_auto_increment($object);
-    # don't allow insert to recurse to related objects - we do the recursion ourselves
+# don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
     $object->update_or_insert;
 
-    # updating relations that can be done only after the row is inserted into the database
-    # like has_many and many_to_many
+    # updating many_to_many
     for my $name ( keys %$updates ){
         next if exists $columns{ $name };
         my $value = $updates->{$name};
@@ -96,40 +88,32 @@ sub recursive_update {
                 my $set_meth = 'set_' . $name;
                 $object->$set_meth( \@rows );
         }
-        elsif( $object->result_source->has_relationship($name) ){
-            my $info = $object->result_source->relationship_info( $name );
-            next if ( _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) ) );
-            # has many case (and similar)
-            my $resolved =  $self->result_source->resolve_condition(
-                        $info->{cond}, $name, $object
-            );
-#            warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
-            $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
-            my $related_result = $self->related_resultset( $name )->result_source->resultset;
-            if( ref $updates->{$name} eq 'ARRAY' ){
-                for my $sub_updates ( @{$updates->{$name}} ) {
-                    my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
-                }
-            }
-            # might_have and has_one case
-            else{
-                my $sub_object = $related_result->recursive_update( $value, $resolved );
-                #$object->set_from_related( $name, $sub_object );
-            }
-        }
+    }
+    for my $name ( keys %post_updates ){ 
+        my $info = $object->result_source->relationship_info( $name );
+        $self->update_relation( $name, $updates, $object, $info );
     }
     return $object;
 }
 
-sub is_for_column {
-    my( $self, $name, $value ) = @_;
-    my $source = $self->result_source;
-    return
-    $source->has_column($name)
-    && !(
-        $source->has_relationship($name)
-        && ref( $value )
-    )
+sub update_relation{
+    my( $self, $name, $updates, $object, $info ) = @_;
+
+                    my $related_result = $self->related_resultset( $name )->result_source->resultset;
+                    my $resolved =  $self->result_source->resolve_condition(
+                        $info->{cond}, $name, $object
+                    );
+#                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
+                    $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
+                    if( ref $updates->{$name} eq 'ARRAY' ){
+                        for my $sub_updates ( @{$updates->{$name}} ) {
+                            my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
+                        }
+                    }
+                    else { 
+                        my $sub_object = $related_result->recursive_update( $updates->{$name}, $resolved );
+                        $object->set_from_related( $name, $sub_object );
+                    }
 }
 
 
