@@ -5,8 +5,11 @@ use Exporter 'import'; # gives you Exporter's import() method directly
 use strict;
 use Test::More; 
 
+
 sub run_tests{
     my $schema = shift;
+
+    plan tests => 24;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -23,19 +26,18 @@ sub run_tests{
         id => undef,
             name => 'Test name 2',
             viewings => [ { user_id => $owner->id } ],
-            owner => { id => $owner->id },
+            owner => { id => $another_owner->id },
     };
     
     my $new_dvd = $dvd_rs->recursive_update( $updates );
 #    my $new_dvd = $dvd_rs->create( $updates );
   
-    ok ( $new_dvd->isa( 'DBSchema::Result::Dvd' ), 'Dvd created' );
     is ( $dvd_rs->count, $initial_dvd_count + 1, 'Dvd created' );
     is ( $schema->resultset( 'User' )->count, $initial_user_count, "No new user created" );
     is ( $new_dvd->name, 'Test name 2', 'Dvd name set' );
-    is ( $new_dvd->owner->id, $owner->id, 'Owner set' );
+    is ( $new_dvd->owner->id, $another_owner->id, 'Owner set' );
     is ( $new_dvd->viewings->count, 1, 'Viewing created' );
-;    
+    
     # creating new records
     my $updates = {
         id => undef,
@@ -112,6 +114,8 @@ sub run_tests{
     };
     
     my $user = $user_rs->recursive_update( $updates );
+    is ( $schema->resultset( 'User' )->count, $initial_user_count + 2, "New user created" );
+    is ( $dvd_rs->count, $initial_dvd_count + 4, 'Dvds created' );
     my %owned_dvds = map { $_->name => $_ } $user->owned_dvds;
     is( scalar keys %owned_dvds, 2, 'Has many relations created' );
     ok( $owned_dvds{'temp name 1'}, 'Name in a has_many related record saved' );
