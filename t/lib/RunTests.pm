@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 25;
+    plan tests => 27;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -23,7 +23,6 @@ sub run_tests{
     
     my $updates;
     $updates = {
-        id => undef,
             name => 'Test name 2',
             viewings => [ { user_id => $owner->id } ],
             owner => { id => $another_owner->id },
@@ -40,7 +39,6 @@ sub run_tests{
     
     # creating new records
     my $updates = {
-        id => undef,
             aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
@@ -56,6 +54,12 @@ sub run_tests{
             like_has_many => [
             { key2 => 1 }
             ],
+            like_has_many2 => [ 
+                {
+                    onekey => { name => 'aaaaa' },
+                    key2 => 1
+                }
+            ],
     };
     
     my $dvd = $dvd_rs->recursive_update( $updates );
@@ -69,7 +73,12 @@ sub run_tests{
     is ( $dvd->current_borrower->name, 'temp name', 'Related record created' );
     is ( $dvd->liner_notes->notes, 'test note', 'might_have record created' );
     ok ( $schema->resultset( 'Twokeys' )->find( { dvd_name => 'Test name', key2 => 1 } ), 'Twokeys created' );
-    # changing existing records
+    my $onekey = $schema->resultset( 'Onekey' )->search( name => 'aaaaa' )->first;
+    ok ( $onekey, 'Onekey created' );
+    ok ( $schema->resultset( 'Twokeys_belongsto' )->find( { key1 => $onekey->id, key2 => 1 } ), 'Twokeys created' );
+
+
+# changing existing records
     
     my $num_of_users = $user_rs->count;
     $updates = {
@@ -86,6 +95,7 @@ sub run_tests{
             liner_notes => {
                 notes => 'test note changed',
             },
+
     };
     $dvd = $dvd_rs->recursive_update( $updates );
     
@@ -100,18 +110,15 @@ sub run_tests{
     # repeatable
     
     $updates = {
-        id => undef,
         name  => 'temp name',
         username => 'temp username',
         password => 'temp username',
         owned_dvds =>[
         {
-            'id' => undef,
             'name' => 'temp name 1',
             'tags' => [ 1, 2 ],
         },
         {
-            'id' => undef,
             'name' => 'temp name 2',
             'tags' => [ 2, 3 ],
         }

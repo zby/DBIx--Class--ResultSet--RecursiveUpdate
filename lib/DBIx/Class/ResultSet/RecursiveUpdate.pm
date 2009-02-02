@@ -11,64 +11,74 @@ use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update { 
     my( $self, $updates, $fixed_fields ) = @_;
+#    warn 'entering: ' . $self->result_source->from();
     if( blessed( $updates ) && $updates->isa( 'DBIx::Class::Row' ) ){
         return $updates;
     }
+    my $object;
+#    warn 'fixed_fields: ' . Dumper( $fixed_fields ); use Data::Dumper;
+    if( $fixed_fields ){
+        carp if !( ref( $fixed_fields ) eq 'HASH' );
+        $updates = { %$updates, %$fixed_fields };
+    }
     my %columns;
-    for my $name ( keys %$updates ){ 
+    for my $name ( keys %$updates ){
         if( $self->is_for_column( $name, $updates->{$name} ) ){
             $columns{$name} = $updates->{$name};
         }
     }
-    my $object;
-#    warn 'cond: ' . Dumper( $self->{cond} ); use Data::Dumper;
-#    warn 'where: ' . Dumper( $self->{attrs}{where} ); use Data::Dumper;
-    my @missing = grep { !exists $updates->{$_} && !exists $fixed_fields->{$_} } $self->result_source->primary_columns;
-    if( defined $self->{cond} && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $self->{cond} ){
-        $self->{cond} = undef;
-        $self->{attrs}{where} = undef;
-        if( ! scalar @missing ){
-            $object = $self->find( \%columns, { key => 'primary' } );
-        }
-    }
-    else{
+#    warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
+    my @missing = grep { !exists $columns{$_} } $self->result_source->primary_columns;
+    if( ! scalar @missing ){
         $object = $self->find( \%columns, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
 
     # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %columns ){ 
-            $object->$name( $updates->{$name} );
+        $object->$name( $updates->{$name} );
     }
     for my $name ( keys %$updates ){ 
-        if($object->can($name) && !$self->is_for_column( $name, $updates->{$name} ) ){
-
+        next if exists $columns{ $name };
+        if(
+            #$object->can($name) 
+            $object->result_source->has_relationship($name)
+            && !$self->is_for_column( $object, $name, $updates->{$name} ) 
+        ){
             # updating relations that that should be done before the row is inserted into the database
             # like belongs_to
                 my $info = $object->result_source->relationship_info( $name );
-                if( $info and not $info->{attrs}{accessor} eq 'multi'
+                if( $info #and not $info->{attrs}{accessor} eq 'multi'
                         and 
                     _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) )
                 ){
-                    my $related_result = $object->related_resultset( $name );
+                    my $related_result = $self->related_resultset( $name )->result_source->resultset;
                     my $resolved =  $self->result_source->resolve_condition(
                         $info->{cond}, $name, $object
                     );
 #                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
-                    my $sub_object = $related_result->recursive_update( $updates->{$name} );
-                    $object->set_from_related( $name, $sub_object );
+                    $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
+                    if( ref $updates->{$name} eq 'ARRAY' ){
+                        for my $sub_updates ( @{$updates->{$name}} ) {
+                            my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
+                        }
+                    }
+                    else { 
+                        my $sub_object = $related_result->recursive_update( $updates->{$name}, $resolved );
+                        $object->set_from_related( $name, $sub_object );
+                    }
                 }
         }
     }
     $self->_delete_empty_auto_increment($object);
     # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
-#    warn Dumper( $object->{_column_data} );
     $object->update_or_insert;
 
     # updating relations that can be done only after the row is inserted into the database
     # like has_many and many_to_many
     for my $name ( keys %$updates ){
+        next if exists $columns{ $name };
         my $value = $updates->{$name};
         # many to many case
         if( $self->is_m2m( $name ) ) {
@@ -88,15 +98,22 @@ sub recursive_update {
         }
         elsif( $object->result_source->has_relationship($name) ){
             my $info = $object->result_source->relationship_info( $name );
+            next if ( _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) ) );
             # has many case (and similar)
+            my $resolved =  $self->result_source->resolve_condition(
+                        $info->{cond}, $name, $object
+            );
+#            warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
+            $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
+            my $related_result = $self->related_resultset( $name )->result_source->resultset;
             if( ref $updates->{$name} eq 'ARRAY' ){
                 for my $sub_updates ( @{$updates->{$name}} ) {
-                    my $sub_object = $object->search_related( $name )->recursive_update( $sub_updates );
+                    my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
                 }
             }
             # might_have and has_one case
-            elsif ( ! _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
-                my $sub_object = $object->search_related( $name )->recursive_update( $value );
+            else{
+                my $sub_object = $related_result->recursive_update( $value, $resolved );
                 #$object->set_from_related( $name, $sub_object );
             }
         }
@@ -166,7 +183,6 @@ sub _delete_empty_auto_increment {
 
 sub _get_pk_for_related {
     my ( $self, $relation ) = @_;
-
     my $result_source;
     if( $self->result_source->has_relationship( $relation ) ){
         $result_source = $self->result_source->related_source( $relation );
@@ -200,7 +216,6 @@ sub _master_relation_cond {
     }
     return;
 }
-
 
 1; # Magic true value required at end of module
 __END__
