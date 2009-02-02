@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 24;
+    plan tests => 25;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -82,7 +82,10 @@ sub run_tests{
                 username => 'new name a',
                 name => 'new name a',
                 password => 'new password a',
-            }
+            },
+            liner_notes => {
+                notes => 'test note changed',
+            },
     };
     $dvd = $dvd_rs->recursive_update( $updates );
     
@@ -91,6 +94,8 @@ sub run_tests{
     is ( $dvd->owner->id, $another_owner->id, 'Owner updated' );
     is ( $dvd->current_borrower->name, 'new name a', 'Related record modified' );
     is ( $dvd->tags->count, 0, 'Tags deleted' );
+    is ( $dvd->liner_notes->notes, 'test note changed', 'might_have record changed' );
+
 
     # repeatable
     

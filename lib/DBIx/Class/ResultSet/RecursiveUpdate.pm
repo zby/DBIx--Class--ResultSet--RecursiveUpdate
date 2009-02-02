@@ -14,6 +14,12 @@ sub recursive_update {
     if( blessed( $updates ) && $updates->isa( 'DBIx::Class::Row' ) ){
         return $updates;
     }
+    my %columns;
+    for my $name ( keys %$updates ){ 
+        if( $self->is_for_column( $name, $updates->{$name} ) ){
+            $columns{$name} = $updates->{$name};
+        }
+    }
     my $object;
 #    warn 'cond: ' . Dumper( $self->{cond} ); use Data::Dumper;
 #    warn 'where: ' . Dumper( $self->{attrs}{where} ); use Data::Dumper;
@@ -22,29 +28,27 @@ sub recursive_update {
         $self->{cond} = undef;
         $self->{attrs}{where} = undef;
         if( ! scalar @missing ){
-            $object = $self->find( $updates, { key => 'primary' } );
+            $object = $self->find( \%columns, { key => 'primary' } );
         }
     }
     else{
-        $object = $self->find( $updates, { key => 'primary' } );
+        $object = $self->find( \%columns, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
 
     # first update columns and other accessors - so that later related records can be found
-    for my $name ( keys %$updates ){ 
-        if( $self->is_for_column( $object, $name, $updates->{$name} ) ) {
+    for my $name ( keys %columns ){ 
             $object->$name( $updates->{$name} );
-        }
     }
     for my $name ( keys %$updates ){ 
-        if($object->can($name) && !$self->is_for_column( $object, $name, $updates->{$name} ) ){
+        if($object->can($name) && !$self->is_for_column( $name, $updates->{$name} ) ){
 
             # updating relations that that should be done before the row is inserted into the database
             # like belongs_to
                 my $info = $object->result_source->relationship_info( $name );
                 if( $info and not $info->{attrs}{accessor} eq 'multi'
                         and 
-                    _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) )
+                    _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) )
                 ){
                     my $related_result = $object->related_resultset( $name );
                     my $resolved =  $self->result_source->resolve_condition(
@@ -91,7 +95,7 @@ sub recursive_update {
                 }
             }
             # might_have and has_one case
-            elsif ( ! _master_relation_cond( $object, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
+            elsif ( ! _master_relation_cond( $object->result_source, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
                 my $sub_object = $object->search_related( $name )->recursive_update( $value );
                 #$object->set_from_related( $name, $sub_object );
             }
@@ -100,19 +104,17 @@ sub recursive_update {
     return $object;
 }
 
-sub is_for_column { 
-    my( $self, $object, $name, $value ) = @_;
-    return 
-    $object->can($name)
-    && !( 
-        $object->result_source->has_relationship($name)
+sub is_for_column {
+    my( $self, $name, $value ) = @_;
+    my $source = $self->result_source;
+    return
+    $source->has_column($name)
+    && !(
+        $source->has_relationship($name)
         && ref( $value )
     )
-    && ( 
-        $object->result_source->has_column($name)
-        || !$object->can( 'set_' . $name )
-    )
 }
+
 
 sub is_m2m {
     my( $self, $relation ) = @_;
@@ -177,14 +179,14 @@ sub _get_pk_for_related {
 }
 
 sub _master_relation_cond {
-    my ( $object, $cond, @foreign_ids ) = @_;
+    my ( $source, $cond, @foreign_ids ) = @_;
     my $foreign_ids_re = join '|', @foreign_ids;
     if ( ref $cond eq 'HASH' ){
         for my $f_key ( keys %{$cond} ) {
             # might_have is not master
             my $col = $cond->{$f_key};
             $col =~ s/self\.//;
-            if( $object->column_info( $col )->{is_auto_increment} ){
+            if( $source->column_info( $col )->{is_auto_increment} ){
                 return 0;
             }
             if( $f_key =~ /^foreign\.$foreign_ids_re/ ){
@@ -193,7 +195,7 @@ sub _master_relation_cond {
         }
     }elsif ( ref $cond eq 'ARRAY' ){
         for my $new_cond ( @$cond ) {
-            return 1 if _master_relation_cond( $object, $new_cond, @foreign_ids );
+            return 1 if _master_relation_cond( $source, $new_cond, @foreign_ids );
         }
     }
     return;
