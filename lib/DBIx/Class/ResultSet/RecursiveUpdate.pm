@@ -16,24 +16,22 @@ sub recursive_update {
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
-    if ($fixed_fields) {
-        carp if !( ref($fixed_fields) eq 'HASH' );
-        $updates = { %$updates, %$fixed_fields };
-    }
+
+    carp 'fixed fields needs to be a hash ref' if $fixed_fields && ref($fixed_fields) ne 'HASH';
 
     # direct column accessors
     my %columns;
 
-# relations that that should be done before the row is inserted into the database
-# like belongs_to
+    # relations that that should be done before the row is inserted into the database
+    # like belongs_to
     my %pre_updates;
 
-# relations that that should be done after the row is inserted into the database
-# like has_many and might_have
+    # relations that that should be done after the row is inserted into the database
+    # like has_many and might_have
     my %post_updates;
     my %columns_by_accessor = $self->_get_columns_by_accessor;
 
-#    warn 'columns_by_accessor: ' . Dumper( \%columns_by_accessor ); use Data::Dumper;
+    #    warn 'columns_by_accessor: ' . Dumper( \%columns_by_accessor ); use Data::Dumper;
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
         if ( $columns_by_accessor{$name}
@@ -62,7 +60,7 @@ sub recursive_update {
 
     my $object;
     my @missing =
-      grep { !exists $columns{$_} } $self->result_source->primary_columns;
+      grep { !exists $columns{$_} && !exists $fixed_fields->{$_} } $self->result_source->primary_columns;
     if ( !scalar @missing ) {
         $object = $self->find( \%columns, { key => 'primary' } );
     }
@@ -137,13 +135,16 @@ sub _update_relation {
       if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
     if ( ref $updates->{$name} eq 'ARRAY' ) {
         for my $sub_updates ( @{ $updates->{$name} } ) {
+            $sub_updates = { %$sub_updates, %$resolved } if $resolved;
             my $sub_object =
               $related_result->recursive_update( $sub_updates, $resolved );
         }
     }
     else {
+        my $sub_updates = $updates->{$name};
+        $sub_updates = { %$sub_updates, %$resolved } if $resolved;
         my $sub_object =
-          $related_result->recursive_update( $updates->{$name}, $resolved );
+          $related_result->recursive_update( $sub_updates, $resolved );
         $object->set_from_related( $name, $sub_object );
     }
 }
@@ -261,7 +262,6 @@ Then:
         id => 1, 
         owned_dvds => [ 
         { 
-          id => undef, 
           title => 'One Flew Over the Cuckoo's Nest' 
         } 
         ] 
@@ -280,9 +280,29 @@ which works just like update_or_create but can recursively update or create
 data objects composed of multiple rows. All rows need to be identified by primary keys
 - so you need to provide them in the update structure (unless they can be deduced from 
 the parent row - for example when you have a belongs_to relationship).  
-When creating new rows in a table with auto_increment primary keys you need to 
-put 'undef' for the key value - this is then removed
-and a correct INSERT statement is generated.  
+If not all colums comprising the primary key are specified - then a new row will be created,
+with the expectation that the missing columns will be filled by it (as in the case of auto_increment 
+primary keys).  
+
+
+If the resultset itself stores an assignement for the primary key, 
+like in the case of:
+    
+    my $restricted_rs = $user_rs->search( { id => 1 } );
+
+then you need to specify that additional predicate as a second argument to the recursive_update
+method:
+
+    my $user = $restricted_rs->recursive_update( { 
+        owned_dvds => [ 
+        { 
+          title => 'One Flew Over the Cuckoo's Nest' 
+        } 
+        ] 
+      },
+      { id => 1 }
+    );
+
 
 For a many_to_many (pseudo) relation you can supply a list of primary keys
 from the other table - and it will link the record at hand to those and
@@ -297,14 +317,9 @@ in DBIx::Class::Schema.
 
 =head2 Treatment of many to many pseudo relations
 
-Matt Trout expressed following criticism of the support for many to many in
-RecursiveUpdate and since this is an extension of his DBIx::Class I feel obliged to
-reply to it.  It is about two points leading in his opinion to 'fragile and
-implicitely broken code'. 
-
-1. That I rely on the fact that
-
- if($object->can($name) and
+The function gets the information about m2m relations from DBIx::Class::IntrospectableM2M.
+If it is not loaded in the ResultSource classes - then the code relies on the fact that:
+    if($object->can($name) and
              !$object->result_source->has_relationship($name) and
              $object->can( 'set_' . $name )
          )
@@ -312,25 +327,6 @@ implicitely broken code'.
 then $name must be a many to many pseudo relation.  And that in a
 similarly ugly was I find out what is the ResultSource of objects from
 that many to many pseudo relation.
-
-2. That I treat uniformly relations and many to many (which are
-different from relations because they require traversal of the bridge
-table).
-
-To answer 1) I've refactored that 'dirty' code into is_m2m and get_m2m_source so
-that it can be easily overridden.  I agree that this code is not too nice - but
-currenlty it is the only way to do what I need - and I'll replace it as soon as
-there is a more clean way.  I don't think it is extremely brittle - sure it will
-break if many to many (pseudo) relations don't get 'set_*' methods anymore - but
-I would say it is rather justified for this kind of change in underlying library
-to break it.
-
-
-Ad 2) - first this is not strictly true - RecursiveUpdate does have
-different code to cope with m2m and other cases (see the point above for
-example) - but it let's the user to treat m2m and 'normal' relations in a
-uniform way.  I consider this a form of abstraction - it is the work that
-RecursiveUpdate does for the programmer.
 
 
 =head1 INTERFACE 
