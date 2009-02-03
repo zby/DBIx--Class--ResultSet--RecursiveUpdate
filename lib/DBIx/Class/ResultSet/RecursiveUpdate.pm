@@ -29,9 +29,11 @@ sub recursive_update {
     # relations that that should be done after the row is inserted into the database
     # like has_many and might_have
     my %post_updates;
+    my %columns_by_accessor = $self->_get_columns_by_accessor;
+#    warn 'columns_by_accessor: ' . Dumper( \%columns_by_accessor ); use Data::Dumper;
     for my $name ( keys %$updates ){
         my $source = $self->result_source;
-        if( $source->has_column($name) 
+        if( $columns_by_accessor{$name} 
             && !( $source->has_relationship($name) && ref( $updates->{$name} ) ) 
         ){
             $columns{$name} = $updates->{$name};
@@ -61,7 +63,7 @@ sub recursive_update {
     }
     for my $name ( keys %pre_updates ){ 
         my $info = $object->result_source->relationship_info( $name );
-        $self->update_relation( $name, $updates, $object, $info );
+        $self->_update_relation( $name, $updates, $object, $info );
     }
     $self->_delete_empty_auto_increment($object);
 # don't allow insert to recurse to related objects - we do the recursion ourselves
@@ -91,12 +93,24 @@ sub recursive_update {
     }
     for my $name ( keys %post_updates ){ 
         my $info = $object->result_source->relationship_info( $name );
-        $self->update_relation( $name, $updates, $object, $info );
+        $self->_update_relation( $name, $updates, $object, $info );
     }
     return $object;
 }
 
-sub update_relation{
+sub _get_columns_by_accessor {
+    my $self = shift;
+    my $source = $self->result_source;
+    my %columns;
+    for my $name ( $source->columns ){
+        my $info = $source->column_info( $name );
+        $info->{name} = $name;
+        $columns{ $info->{accessor} || $name } = $info;
+    }
+    return %columns;
+}
+
+sub _update_relation{
     my( $self, $name, $updates, $object, $info ) = @_;
 
                     my $related_result = $self->related_resultset( $name )->result_source->resultset;
