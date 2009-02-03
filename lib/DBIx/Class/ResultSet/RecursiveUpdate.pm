@@ -9,172 +9,189 @@ use Scalar::Util qw( blessed );
 
 use base qw(DBIx::Class::ResultSet);
 
-sub recursive_update { 
-    my( $self, $updates, $fixed_fields ) = @_;
+sub recursive_update {
+    my ( $self, $updates, $fixed_fields ) = @_;
+
     # warn 'entering: ' . $self->result_source->from();
-    if( blessed( $updates ) && $updates->isa( 'DBIx::Class::Row' ) ){
+    if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
-    if( $fixed_fields ){
-        carp if !( ref( $fixed_fields ) eq 'HASH' );
+    if ($fixed_fields) {
+        carp if !( ref($fixed_fields) eq 'HASH' );
         $updates = { %$updates, %$fixed_fields };
     }
+
     # direct column accessors
     my %columns;
-    
-    # relations that that should be done before the row is inserted into the database
-    # like belongs_to
+
+# relations that that should be done before the row is inserted into the database
+# like belongs_to
     my %pre_updates;
-    
-    # relations that that should be done after the row is inserted into the database
-    # like has_many and might_have
+
+# relations that that should be done after the row is inserted into the database
+# like has_many and might_have
     my %post_updates;
     my %columns_by_accessor = $self->_get_columns_by_accessor;
+
 #    warn 'columns_by_accessor: ' . Dumper( \%columns_by_accessor ); use Data::Dumper;
-    for my $name ( keys %$updates ){
+    for my $name ( keys %$updates ) {
         my $source = $self->result_source;
-        if( $columns_by_accessor{$name} 
-            && !( $source->has_relationship($name) && ref( $updates->{$name} ) ) 
-        ){
+        if ( $columns_by_accessor{$name}
+            && !( $source->has_relationship($name) && ref( $updates->{$name} ) )
+          )
+        {
             $columns{$name} = $updates->{$name};
             next;
         }
-        next if ! $source->has_relationship($name);
-        my $info = $source->relationship_info( $name );
-        if( _master_relation_cond( $source, $info->{cond}, $self->_get_pk_for_related( $name ) ) ){
+        next if !$source->has_relationship($name);
+        my $info = $source->relationship_info($name);
+        if (
+            _master_relation_cond(
+                $source, $info->{cond}, $self->_get_pk_for_related($name)
+            )
+          )
+        {
             $pre_updates{$name} = $updates->{$name};
         }
-        else{
+        else {
             $post_updates{$name} = $updates->{$name};
         }
     }
+
     # warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
-    
+
     my $object;
-    my @missing = grep { !exists $columns{$_} } $self->result_source->primary_columns;
-    if( ! scalar @missing ){
+    my @missing =
+      grep { !exists $columns{$_} } $self->result_source->primary_columns;
+    if ( !scalar @missing ) {
         $object = $self->find( \%columns, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
 
-    # first update columns and other accessors - so that later related records can be found
-    for my $name ( keys %columns ){ 
+# first update columns and other accessors - so that later related records can be found
+    for my $name ( keys %columns ) {
         $object->$name( $updates->{$name} );
     }
-    for my $name ( keys %pre_updates ){ 
-        my $info = $object->result_source->relationship_info( $name );
+    for my $name ( keys %pre_updates ) {
+        my $info = $object->result_source->relationship_info($name);
         $self->_update_relation( $name, $updates, $object, $info );
     }
     $self->_delete_empty_auto_increment($object);
+
 # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
     $object->update_or_insert;
 
     # updating many_to_many
-    for my $name ( keys %$updates ){
-        next if exists $columns{ $name };
+    for my $name ( keys %$updates ) {
+        next if exists $columns{$name};
         my $value = $updates->{$name};
+
         # many to many case
-        if( $self->is_m2m( $name ) ) {
-                my ( $pk ) = $self->_get_pk_for_related( $name );
-                my @rows;
-                my $result_source = $object->$name->result_source;
-                for my $elem ( @{$updates->{$name}} ){
-                    if( ref $elem ){
-                        push @rows, $result_source->resultset->find( $elem );
-                    }
-                    else{
-                        push @rows, $result_source->resultset->find( { $pk => $elem } );
-                    }
+        if ( $self->is_m2m($name) ) {
+            my ($pk) = $self->_get_pk_for_related($name);
+            my @rows;
+            my $result_source = $object->$name->result_source;
+            for my $elem ( @{ $updates->{$name} } ) {
+                if ( ref $elem ) {
+                    push @rows, $result_source->resultset->find($elem);
                 }
-                my $set_meth = 'set_' . $name;
-                $object->$set_meth( \@rows );
+                else {
+                    push @rows,
+                      $result_source->resultset->find( { $pk => $elem } );
+                }
+            }
+            my $set_meth = 'set_' . $name;
+            $object->$set_meth( \@rows );
         }
     }
-    for my $name ( keys %post_updates ){ 
-        my $info = $object->result_source->relationship_info( $name );
+    for my $name ( keys %post_updates ) {
+        my $info = $object->result_source->relationship_info($name);
         $self->_update_relation( $name, $updates, $object, $info );
     }
     return $object;
 }
 
 sub _get_columns_by_accessor {
-    my $self = shift;
+    my $self   = shift;
     my $source = $self->result_source;
     my %columns;
-    for my $name ( $source->columns ){
-        my $info = $source->column_info( $name );
+    for my $name ( $source->columns ) {
+        my $info = $source->column_info($name);
         $info->{name} = $name;
         $columns{ $info->{accessor} || $name } = $info;
     }
     return %columns;
 }
 
-sub _update_relation{
-    my( $self, $name, $updates, $object, $info ) = @_;
+sub _update_relation {
+    my ( $self, $name, $updates, $object, $info ) = @_;
 
-                    my $related_result = $self->related_resultset( $name )->result_source->resultset;
-                    my $resolved =  $self->result_source->resolve_condition(
-                        $info->{cond}, $name, $object
-                    );
-#                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
-                    $resolved = undef if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
-                    if( ref $updates->{$name} eq 'ARRAY' ){
-                        for my $sub_updates ( @{$updates->{$name}} ) {
-                            my $sub_object = $related_result->recursive_update( $sub_updates, $resolved );
-                        }
-                    }
-                    else { 
-                        my $sub_object = $related_result->recursive_update( $updates->{$name}, $resolved );
-                        $object->set_from_related( $name, $sub_object );
-                    }
+    my $related_result =
+      $self->related_resultset($name)->result_source->resultset;
+    my $resolved =
+      $self->result_source->resolve_condition( $info->{cond}, $name, $object );
+
+ #                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
+    $resolved = undef
+      if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
+    if ( ref $updates->{$name} eq 'ARRAY' ) {
+        for my $sub_updates ( @{ $updates->{$name} } ) {
+            my $sub_object =
+              $related_result->recursive_update( $sub_updates, $resolved );
+        }
+    }
+    else {
+        my $sub_object =
+          $related_result->recursive_update( $updates->{$name}, $resolved );
+        $object->set_from_related( $name, $sub_object );
+    }
 }
 
-
 sub is_m2m {
-    my( $self, $relation ) = @_;
+    my ( $self, $relation ) = @_;
     my $rclass = $self->result_class;
+
     # DBIx::Class::IntrospectableM2M
-    if( $rclass->can( '_m2m_metadata' ) ){
+    if ( $rclass->can('_m2m_metadata') ) {
         return $rclass->_m2m_metadata->{$relation};
     }
-    my $object = $self->new({});
-    if ( $object->can($relation) and 
-        !$self->result_source->has_relationship($relation) and 
-        $object->can( 'set_' . $relation)
-    ){
+    my $object = $self->new( {} );
+    if (    $object->can($relation)
+        and !$self->result_source->has_relationship($relation)
+        and $object->can( 'set_' . $relation ) )
+    {
         return 1;
     }
     return;
 }
 
 sub get_m2m_source {
-    my( $self, $relation ) = @_;
+    my ( $self, $relation ) = @_;
     my $rclass = $self->result_class;
+
     # DBIx::Class::IntrospectableM2M
-    if( $rclass->can( '_m2m_metadata' ) ){
-        return $self->result_source
-        ->related_source( 
-            $rclass->_m2m_metadata->{$relation}{relation}
-        )
-        ->related_source( 
-            $rclass->_m2m_metadata->{$relation}{foreign_relation} 
-        );
+    if ( $rclass->can('_m2m_metadata') ) {
+        return $self->result_source->related_source(
+            $rclass->_m2m_metadata->{$relation}{relation} )
+          ->related_source(
+            $rclass->_m2m_metadata->{$relation}{foreign_relation} );
     }
-    my $object = $self->new({});
+    my $object = $self->new( {} );
     my $r = $object->$relation;
     return $r->result_source;
 }
 
- 
 sub _delete_empty_auto_increment {
     my ( $self, $object ) = @_;
-    for my $col ( keys %{$object->{_column_data}}){
-        if( $object->result_source->column_info( $col )->{is_auto_increment} 
-                and 
-            ( ! defined $object->{_column_data}{$col} or $object->{_column_data}{$col} eq '' )
-        ){
-            delete $object->{_column_data}{$col}
+    for my $col ( keys %{ $object->{_column_data} } ) {
+        if (
+            $object->result_source->column_info($col)->{is_auto_increment}
+            and ( !defined $object->{_column_data}{$col}
+                or $object->{_column_data}{$col} eq '' )
+          )
+        {
+            delete $object->{_column_data}{$col};
         }
     }
 }
@@ -182,12 +199,13 @@ sub _delete_empty_auto_increment {
 sub _get_pk_for_related {
     my ( $self, $relation ) = @_;
     my $result_source;
-    if( $self->result_source->has_relationship( $relation ) ){
-        $result_source = $self->result_source->related_source( $relation );
+    if ( $self->result_source->has_relationship($relation) ) {
+        $result_source = $self->result_source->related_source($relation);
     }
+
     # many to many case
-    if ( $self->is_m2m( $relation ) ) {
-        $result_source = $self->get_m2m_source( $relation );
+    if ( $self->is_m2m($relation) ) {
+        $result_source = $self->get_m2m_source($relation);
     }
     return $result_source->primary_columns;
 }
@@ -195,27 +213,30 @@ sub _get_pk_for_related {
 sub _master_relation_cond {
     my ( $source, $cond, @foreign_ids ) = @_;
     my $foreign_ids_re = join '|', @foreign_ids;
-    if ( ref $cond eq 'HASH' ){
+    if ( ref $cond eq 'HASH' ) {
         for my $f_key ( keys %{$cond} ) {
+
             # might_have is not master
             my $col = $cond->{$f_key};
             $col =~ s/self\.//;
-            if( $source->column_info( $col )->{is_auto_increment} ){
+            if ( $source->column_info($col)->{is_auto_increment} ) {
                 return 0;
             }
-            if( $f_key =~ /^foreign\.$foreign_ids_re/ ){
+            if ( $f_key =~ /^foreign\.$foreign_ids_re/ ) {
                 return 1;
             }
         }
-    }elsif ( ref $cond eq 'ARRAY' ){
-        for my $new_cond ( @$cond ) {
-            return 1 if _master_relation_cond( $source, $new_cond, @foreign_ids );
+    }
+    elsif ( ref $cond eq 'ARRAY' ) {
+        for my $new_cond (@$cond) {
+            return 1
+              if _master_relation_cond( $source, $new_cond, @foreign_ids );
         }
     }
     return;
 }
 
-1; # Magic true value required at end of module
+1;    # Magic true value required at end of module
 __END__
 
 =head1 NAME
