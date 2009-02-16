@@ -132,17 +132,17 @@ sub _update_relation {
 
  #                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
     $resolved = undef
-      if $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
+      if defined $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
     if ( ref $updates->{$name} eq 'ARRAY' ) {
         for my $sub_updates ( @{ $updates->{$name} } ) {
-            $sub_updates = { %$sub_updates, %$resolved } if $resolved;
+            $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
             my $sub_object =
               $related_result->recursive_update( $sub_updates );
         }
     }
     else {
         my $sub_updates = $updates->{$name};
-        $sub_updates = { %$sub_updates, %$resolved } if $resolved;
+        $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
         my $sub_object =
           $related_result->recursive_update( $sub_updates );
         $object->set_from_related( $name, $sub_object );

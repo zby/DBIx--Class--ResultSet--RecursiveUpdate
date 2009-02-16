@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 28;
+    plan tests => 27;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -36,7 +36,7 @@ sub run_tests{
     is ( $new_dvd->name, 'Test name 2', 'Dvd name set' );
     is ( $new_dvd->owner->id, $another_owner->id, 'Owner set' );
     is ( $new_dvd->viewings->count, 1, 'Viewing created' );
-    
+
     # creating new records
     my $updates = {
             aaaa => undef,
@@ -106,12 +106,6 @@ sub run_tests{
     is ( $dvd->tags->count, 0, 'Tags deleted' );
     is ( $dvd->liner_notes->notes, 'test note changed', 'might_have record changed' );
 
-    $updates = {
-            name => 'Test name 1',
-    };
-    $dvd = $dvd_rs->search( { id => $dvd->id } )->recursive_update( $updates, [ 'id' ] );
-    is ( $dvd->name, 'Test name 1', 'Dvd name set in a resultset with restricted id' );
- 
     # repeatable
     
     $updates = {
@@ -140,4 +134,9 @@ sub run_tests{
     is( scalar @tags, 2, 'Tags in has_many related record saved' );
     ok( $owned_dvds{'temp name 2'}, 'Second name in a has_many related record saved' );
 
+#    $updates = {
+#            name => 'Test name 1',
+#    };
+#    $dvd = $dvd_rs->search( { id => $dvd->id } )->recursive_update( $updates, [ 'id' ] );
+#    is ( $dvd->name, 'Test name 1', 'Dvd name set in a resultset with restricted id' );
 }    
