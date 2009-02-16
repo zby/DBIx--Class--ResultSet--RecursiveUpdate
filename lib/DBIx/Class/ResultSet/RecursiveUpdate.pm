@@ -75,7 +75,7 @@ sub recursive_update {
         my $info = $object->result_source->relationship_info($name);
         $self->_update_relation( $name, $updates, $object, $info );
     }
-    $self->_delete_empty_auto_increment($object);
+#    $self->_delete_empty_auto_increment($object);
 
 # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;

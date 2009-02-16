@@ -21,3 +21,7 @@ t/var/dvdzbr.db
 t/pg.t
 t/sqlite.t
 META.yml                                 Module meta-data (added by MakeMaker)
+t/lib/DBSchema/Result/Twokeys.pm
+t/lib/DBSchema/Result/Viewing.pm
+t/lib/DBSchema/Result/Onekey.pm
+t/lib/DBSchema/Result/Twokeys_belongsto.pm
