@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 27;
+    plan tests => 28;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -79,7 +79,7 @@ sub run_tests{
 
 
 # changing existing records
-    
+
     my $num_of_users = $user_rs->count;
     $updates = {
             id => $dvd->id,
@@ -106,7 +106,12 @@ sub run_tests{
     is ( $dvd->tags->count, 0, 'Tags deleted' );
     is ( $dvd->liner_notes->notes, 'test note changed', 'might_have record changed' );
 
-
+    $updates = {
+            name => 'Test name 1',
+    };
+    $dvd = $dvd_rs->search( { id => $dvd->id } )->recursive_update( $updates, [ 'id' ] );
+    is ( $dvd->name, 'Test name 1', 'Dvd name set in a resultset with restricted id' );
+ 
     # repeatable
     
     $updates = {

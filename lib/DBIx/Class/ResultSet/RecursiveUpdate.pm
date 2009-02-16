@@ -11,13 +11,16 @@ use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update {
     my ( $self, $updates, $fixed_fields ) = @_;
-
     # warn 'entering: ' . $self->result_source->from();
+
+    carp 'fixed fields needs to be an array ref' if $fixed_fields && ref($fixed_fields) ne 'ARRAY';
+    my %fixed_fields;
+    %fixed_fields = map { $_ => 1 } @$fixed_fields if $fixed_fields;
+
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
 
-    carp 'fixed fields needs to be a hash ref' if $fixed_fields && ref($fixed_fields) ne 'HASH';
 
     # direct column accessors
     my %columns;
@@ -31,7 +34,6 @@ sub recursive_update {
     my %post_updates;
     my %columns_by_accessor = $self->_get_columns_by_accessor;
 
-    #    warn 'columns_by_accessor: ' . Dumper( \%columns_by_accessor ); use Data::Dumper;
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
         if ( $columns_by_accessor{$name}
@@ -55,12 +57,11 @@ sub recursive_update {
             $post_updates{$name} = $updates->{$name};
         }
     }
-
     # warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
 
     my $object;
     my @missing =
-      grep { !exists $columns{$_} && !exists $fixed_fields->{$_} } $self->result_source->primary_columns;
+      grep { !exists $columns{$_} && !exists $fixed_fields{$_} } $self->result_source->primary_columns;
     if ( !scalar @missing ) {
         $object = $self->find( \%columns, { key => 'primary' } );
     }
@@ -85,7 +86,6 @@ sub recursive_update {
         next if exists $columns{$name};
         my $value = $updates->{$name};
 
-        # many to many case
         if ( $self->is_m2m($name) ) {
             my ($pk) = $self->_get_pk_for_related($name);
             my @rows;
@@ -137,14 +137,14 @@ sub _update_relation {
         for my $sub_updates ( @{ $updates->{$name} } ) {
             $sub_updates = { %$sub_updates, %$resolved } if $resolved;
             my $sub_object =
-              $related_result->recursive_update( $sub_updates, $resolved );
+              $related_result->recursive_update( $sub_updates );
         }
     }
     else {
         my $sub_updates = $updates->{$name};
         $sub_updates = { %$sub_updates, %$resolved } if $resolved;
         my $sub_object =
-          $related_result->recursive_update( $sub_updates, $resolved );
+          $related_result->recursive_update( $sub_updates );
         $object->set_from_related( $name, $sub_object );
     }
 }
@@ -290,8 +290,7 @@ like in the case of:
     
     my $restricted_rs = $user_rs->search( { id => 1 } );
 
-then you need to specify that additional predicate as a second argument to the recursive_update
-method:
+then you need to inform recursive_update about additional predicate with a second argument:
 
     my $user = $restricted_rs->recursive_update( { 
         owned_dvds => [ 
@@ -300,7 +299,7 @@ method:
         } 
         ] 
       },
-      { id => 1 }
+      [ 'id' ]
     );
 
 
