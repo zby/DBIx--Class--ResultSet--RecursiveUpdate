@@ -18,10 +18,9 @@ sub run_tests{
     my $another_owner = $user_rs->next;
     my $initial_user_count = $user_rs->count;
     my $initial_dvd_count = $dvd_rs->count;
+    my $updates;
    
     # creating new record linked to some old record
-    
-    my $updates;
     $updates = {
             name => 'Test name 2',
             viewings => [ { user_id => $owner->id } ],
@@ -38,7 +37,7 @@ sub run_tests{
     is ( $new_dvd->viewings->count, 1, 'Viewing created' );
 
     # creating new records
-    my $updates = {
+    $updates = {
             aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
