@@ -270,6 +270,7 @@ Then:
 
   
 =head1 DESCRIPTION
+This is the first release - so treat it as experimental.
 
 You can feed the ->create method with a recursive datastructure and have the related records
 created.  Unfortunately you cannot do a similar thing with update_or_create - this module
@@ -302,12 +303,13 @@ then you need to inform recursive_update about additional predicate with a secon
       [ 'id' ]
     );
 
+This will work with a new DBIC release.
 
 For a many_to_many (pseudo) relation you can supply a list of primary keys
 from the other table - and it will link the record at hand to those and
 only those records identified by them.  This is convenient for handling web
 forms with check boxes (or a SELECT box with multiple choice) that let you
-update such (pseudo) relations.
+update such (pseudo) relations.  
 
 For a description how to set up base classes for ResultSets see load_namespaces
 in DBIx::Class::Schema.
