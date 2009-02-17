@@ -1,6 +1,6 @@
 package DBIx::Class::ResultSet::RecursiveUpdate;
 
-use version; $VERSION = qv('0.001');
+use version; $VERSION = qv('0.002');
 
 use warnings;
 use strict;
