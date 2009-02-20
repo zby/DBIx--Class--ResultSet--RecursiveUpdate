@@ -18,4 +18,6 @@ WriteMakefile(
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'DBIx-Class-ResultSet-RecursiveUpdate-*' },
+    LICENSE             => 'perl'
 );
+
