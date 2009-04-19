@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 27;
+    plan tests => 28;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -76,14 +76,14 @@ sub run_tests{
     ok ( $onekey, 'Onekey created' );
     ok ( $schema->resultset( 'Twokeys_belongsto' )->find( { key1 => $onekey->id, key2 => 1 } ), 'Twokeys created' );
 
-
+    is ( $dvd->name, 'Test name', 'Dvd name set' );
 # changing existing records
 
     my $num_of_users = $user_rs->count;
     $updates = {
             id => $dvd->id,
             aaaa => undef,
-            name => 'Test name',
+            name => undef,
             tags => [ ], 
             'owner' => $another_owner->id,
             current_borrower => {
@@ -99,7 +99,7 @@ sub run_tests{
     $dvd = $dvd_rs->recursive_update( $updates );
     
     is ( $schema->resultset( 'User' )->count, $initial_user_count + 1, "No new user created" );
-    is ( $dvd->name, 'Test name', 'Dvd name set' );
+    is ( $dvd->name, undef, 'Dvd name deleted' );
     is ( $dvd->owner->id, $another_owner->id, 'Owner updated' );
     is ( $dvd->current_borrower->name, 'new name a', 'Related record modified' );
     is ( $dvd->tags->count, 0, 'Tags deleted' );

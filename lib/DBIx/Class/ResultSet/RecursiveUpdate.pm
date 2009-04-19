@@ -1,22 +1,32 @@
+use strict;
+use warnings;
 package DBIx::Class::ResultSet::RecursiveUpdate;
 
-use version; $VERSION = qv('0.002');
-
-use warnings;
-use strict;
-use Carp;
-use Scalar::Util qw( blessed );
+use version; our $VERSION = qv('0.004');
 
 use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update {
     my ( $self, $updates, $fixed_fields ) = @_;
-    # warn 'entering: ' . $self->result_source->from();
+    return DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+        resultset    => $self,
+        updates      => $updates,
+        fixed_fields => $fixed_fields
+    );
+}
 
+package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
+use Carp;
+use Scalar::Util qw( blessed );
+
+
+sub recursive_update {
+    my %params = @_;
+    my ( $self, $updates, $fixed_fields, $object ) = @params{ qw/resultset updates fixed_fields object/ }; 
+    # warn 'entering: ' . $self->result_source->from();
     carp 'fixed fields needs to be an array ref' if $fixed_fields && ref($fixed_fields) ne 'ARRAY';
     my %fixed_fields;
     %fixed_fields = map { $_ => 1 } @$fixed_fields if $fixed_fields;
-
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
@@ -32,7 +42,7 @@ sub recursive_update {
     # relations that that should be done after the row is inserted into the database
     # like has_many and might_have
     my %post_updates;
-    my %columns_by_accessor = $self->_get_columns_by_accessor;
+    my %columns_by_accessor = _get_columns_by_accessor( $self );
 
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
@@ -47,7 +57,7 @@ sub recursive_update {
         my $info = $source->relationship_info($name);
         if (
             _master_relation_cond(
-                $source, $info->{cond}, $self->_get_pk_for_related($name)
+                $source, $info->{cond}, _get_pk_for_related( $self, $name)
             )
           )
         {
@@ -59,10 +69,9 @@ sub recursive_update {
     }
     # warn 'columns: ' . Dumper( \%columns ); use Data::Dumper;
 
-    my $object;
     my @missing =
       grep { !exists $columns{$_} && !exists $fixed_fields{$_} } $self->result_source->primary_columns;
-    if ( !scalar @missing ) {
+    if ( !$object && !scalar @missing ) {
         $object = $self->find( \%columns, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
@@ -73,7 +82,7 @@ sub recursive_update {
     }
     for my $name ( keys %pre_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        $self->_update_relation( $name, $updates, $object, $info );
+        _update_relation( $self, $name, $updates, $object, $info );
     }
 #    $self->_delete_empty_auto_increment($object);
 
@@ -86,8 +95,8 @@ sub recursive_update {
         next if exists $columns{$name};
         my $value = $updates->{$name};
 
-        if ( $self->is_m2m($name) ) {
-            my ($pk) = $self->_get_pk_for_related($name);
+        if ( is_m2m( $self, $name) ) {
+            my ($pk) = _get_pk_for_related( $self, $name);
             my @rows;
             my $result_source = $object->$name->result_source;
             for my $elem ( @{ $updates->{$name} } ) {
@@ -105,7 +114,7 @@ sub recursive_update {
     }
     for my $name ( keys %post_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        $self->_update_relation( $name, $updates, $object, $info );
+        _update_relation( $self, $name, $updates, $object, $info );
     }
     return $object;
 }
@@ -124,7 +133,6 @@ sub _get_columns_by_accessor {
 
 sub _update_relation {
     my ( $self, $name, $updates, $object, $info ) = @_;
-
     my $related_result =
       $self->related_resultset($name)->result_source->resultset;
     my $resolved =
@@ -137,14 +145,14 @@ sub _update_relation {
         for my $sub_updates ( @{ $updates->{$name} } ) {
             $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
             my $sub_object =
-              $related_result->recursive_update( $sub_updates );
+              recursive_update( resultset => $related_result, updates => $sub_updates );
         }
     }
     else {
         my $sub_updates = $updates->{$name};
         $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
         my $sub_object =
-          $related_result->recursive_update( $sub_updates );
+          recursive_update( resultset => $related_result, updates => $sub_updates );
         $object->set_from_related( $name, $sub_object );
     }
 }
@@ -205,8 +213,8 @@ sub _get_pk_for_related {
     }
 
     # many to many case
-    if ( $self->is_m2m($relation) ) {
-        $result_source = $self->get_m2m_source($relation);
+    if ( is_m2m($self, $relation) ) {
+        $result_source = get_m2m_source($self, $relation);
     }
     return $result_source->primary_columns;
 }
@@ -242,15 +250,30 @@ __END__
 
 =head1 NAME
 
-DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but recursive 
+DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but recursive
 
 
 =head1 VERSION
 
-This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.001
+This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.004
 
 
 =head1 SYNOPSIS
+
+The functional interface:
+
+    my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update({ 
+        id => 1, 
+        owned_dvds => [ 
+        { 
+          title => 'One Flew Over the Cuckoo's Nest' 
+        } 
+        ] 
+      }
+    );
+
+
+As ResultSet subclass:
 
     __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
 
@@ -270,7 +293,8 @@ Then:
 
   
 =head1 DESCRIPTION
-This is the first release - so treat it as experimental.
+This is still experimental. I've added a functional interface so that it can be used 
+in Form Processors and not require modification of the model.
 
 You can feed the ->create method with a recursive datastructure and have the related records
 created.  Unfortunately you cannot do a similar thing with update_or_create - this module

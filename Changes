@@ -1,5 +1,8 @@
 Revision history for DBIx-Class-RecursivePUT
 
+0.0.4  Sun Apr 19 11:15:57 CEST 2009
+       Added functional interface - for easy use in Form Processors
+
 0.0.1  Wed Jun 18 13:09:28 2008
        Initial release.
 

@@ -15,6 +15,7 @@ WriteMakefile(
         'DBIx::Class::IntrospectableM2M' => 0,
         'SQL::Translator' => '0.08',
         'DateTime'   => 0,
+        'DBD::SQLite' => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'DBIx-Class-ResultSet-RecursiveUpdate-*' },
