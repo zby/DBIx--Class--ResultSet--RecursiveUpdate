@@ -14,8 +14,8 @@ __PACKAGE__->add_columns(
     "tag" => { data_type => 'integer' },
 );
 __PACKAGE__->set_primary_key("dvd", "tag");
-__PACKAGE__->belongs_to("dvd", "Dvd", { id => "dvd" });
-__PACKAGE__->belongs_to("tag", "Tag", { id => "tag" });
+__PACKAGE__->belongs_to("dvd", "DBSchema::Result::Dvd", { id => "dvd" });
+__PACKAGE__->belongs_to("tag", "DBSchema::Result::Tag", { id => "tag" });
 
 1;
 
