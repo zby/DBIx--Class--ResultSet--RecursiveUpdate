@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 28;
+    plan tests => 29;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -132,6 +132,20 @@ sub run_tests{
     my @tags = $owned_dvds{'temp name 1'}->tags;
     is( scalar @tags, 2, 'Tags in has_many related record saved' );
     ok( $owned_dvds{'temp name 2'}, 'Second name in a has_many related record saved' );
+
+    $updates = {
+        id => $user->id,
+        address => {
+            street => "101 Main Street",
+            city => "Podunk",
+            state => "New York"
+        }
+    };
+    $user = $user_rs->recursive_update( $updates );
+    $user = $user_rs->recursive_update( $updates );
+    is( $schema->resultset( 'Address' )->search({ user_id => $user->id  })->count, 1,
+            'the right number of addresses' );
+
 
 #    $updates = {
 #            name => 'Test name 1',

@@ -38,5 +38,11 @@ __PACKAGE__->has_many(
 );
 __PACKAGE__->many_to_many('roles', 'user_roles' => 'role');
 
+__PACKAGE__->might_have(
+    "address",
+    "DBSchema::Result::Address",
+    { 'foreign.user_id' => 'self.id' }
+);
+
 1;
 

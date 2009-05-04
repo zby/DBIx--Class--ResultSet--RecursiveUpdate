@@ -30,8 +30,6 @@ sub recursive_update {
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
-
-
     # direct column accessors
     my %columns;
 
@@ -76,7 +74,7 @@ sub recursive_update {
     }
     $object ||= $self->new( {} );
 
-# first update columns and other accessors - so that later related records can be found
+    # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %columns ) {
         $object->$name( $updates->{$name} );
     }
@@ -85,7 +83,6 @@ sub recursive_update {
         _update_relation( $self, $name, $updates, $object, $info );
     }
 #    $self->_delete_empty_auto_increment($object);
-
 # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
     $object->update_or_insert;
@@ -151,8 +148,18 @@ sub _update_relation {
     else {
         my $sub_updates = $updates->{$name};
         $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
-        my $sub_object =
-          recursive_update( resultset => $related_result, updates => $sub_updates );
+        my $sub_object;
+        if( $info->{attrs}{accessor} eq 'single' && defined $object->$name ){
+            $sub_object = recursive_update( 
+                resultset => $related_result, 
+                updates => $sub_updates, 
+                object =>  $object->$name 
+            );
+        }
+        else{ 
+           $sub_object =
+             recursive_update( resultset => $related_result, updates => $sub_updates );
+         }
         $object->set_from_related( $name, $sub_object );
     }
 }

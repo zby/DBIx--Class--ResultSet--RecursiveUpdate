@@ -15,7 +15,7 @@ sub get_test_schema {
     $dsn ||= 'dbi:SQLite:dbname=t/var/dvdzbr.db';
     warn "testing $dsn";
     my $schema = __PACKAGE__->connect( $dsn, $user, $pass, {} );
-    $schema->deploy({ });
+    $schema->deploy({ add_drop_table => 1, });
     $schema->populate('User', [
         [ qw/username name password / ],
         [ 'jgda', 'Jonas Alves', ''],
