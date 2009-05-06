@@ -40,6 +40,7 @@ sub recursive_update {
     # relations that that should be done after the row is inserted into the database
     # like has_many and might_have
     my %post_updates;
+    my %other_methods;
     my %columns_by_accessor = _get_columns_by_accessor( $self );
 
     for my $name ( keys %$updates ) {
@@ -50,6 +51,9 @@ sub recursive_update {
         {
             $columns{$name} = $updates->{$name};
             next;
+        }
+        if( !( $source->has_relationship($name) && ref( $updates->{$name} ) ) ){
+            $other_methods{$name} = $updates->{$name};
         }
         next if !$source->has_relationship($name);
         my $info = $source->relationship_info($name);
@@ -77,6 +81,9 @@ sub recursive_update {
     # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %columns ) {
         $object->$name( $updates->{$name} );
+    }
+    for my $name ( keys %other_methods) {
+        $object->$name( $updates->{$name} ) if $object->can( $name );
     }
     for my $name ( keys %pre_updates ) {
         my $info = $object->result_source->relationship_info($name);
