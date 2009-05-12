@@ -9,7 +9,7 @@ use Test::More;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 29;
+    plan tests => 30;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -19,7 +19,7 @@ sub run_tests{
     my $initial_user_count = $user_rs->count;
     my $initial_dvd_count = $dvd_rs->count;
     my $updates;
-   
+
     # creating new record linked to some old record
     $updates = {
             name => 'Test name 2',
@@ -81,7 +81,7 @@ sub run_tests{
 
     my $num_of_users = $user_rs->count;
     $updates = {
-            id => $dvd->id,
+            id => $dvd->dvd_id, # id instead of dvd_id
             aaaa => undef,
             name => undef,
             tags => [ ], 
@@ -96,14 +96,15 @@ sub run_tests{
             },
 
     };
-    $dvd = $dvd_rs->recursive_update( $updates );
-    
+    my $dvd_updated = $dvd_rs->recursive_update( $updates );
+   
+    is ( $dvd_updated->dvd_id, $dvd->dvd_id, 'Pk from "id"' );
     is ( $schema->resultset( 'User' )->count, $initial_user_count + 1, "No new user created" );
-    is ( $dvd->name, undef, 'Dvd name deleted' );
-    is ( $dvd->owner->id, $another_owner->id, 'Owner updated' );
-    is ( $dvd->current_borrower->name, 'new name a', 'Related record modified' );
-    is ( $dvd->tags->count, 0, 'Tags deleted' );
-    is ( $dvd->liner_notes->notes, 'test note changed', 'might_have record changed' );
+    is ( $dvd_updated->name, undef, 'Dvd name deleted' );
+    is ( $dvd_updated->owner->id, $another_owner->id, 'Owner updated' );
+    is ( $dvd_updated->current_borrower->name, 'new name a', 'Related record modified' );
+    is ( $dvd_updated->tags->count, 0, 'Tags deleted' );
+    is ( $dvd_updated->liner_notes->notes, 'test note changed', 'might_have record changed' );
 
     # repeatable
     

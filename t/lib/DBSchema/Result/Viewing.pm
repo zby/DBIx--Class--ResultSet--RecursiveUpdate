@@ -15,7 +15,7 @@ __PACKAGE__->belongs_to(
 
 __PACKAGE__->belongs_to( 
     dvd => 'DBSchema::Result::Dvd',
-    {'foreign.id'=>'self.dvd_id'},
+    {'foreign.dvd_id'=>'self.dvd_id'},
 );
 
 ;

@@ -45,6 +45,20 @@ sub recursive_update {
     my %columns_by_accessor = _get_columns_by_accessor( $self );
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
+        if( $name eq 'id'
+#            && scalar @{$source->primary_columns} == 1
+            && !$source->has_column( 'id' )
+        ){
+            my @ids = ( $updates->{id} );
+            if( ref $updates->{id} ){
+                @ids = @{ $updates->{id} };
+            }
+            my $i = 0;
+            for my $key ( $source->primary_columns ){
+                $columns{ $key } = $ids[ $i++ ];
+            }
+            next;
+        }
         if ( $columns_by_accessor{$name}
             && !( $source->has_relationship($name) && ref( $updates->{$name} ) )
           )
@@ -77,10 +91,9 @@ sub recursive_update {
         $object = $self->find( \%columns, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
-
     # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %columns ) {
-        $object->$name( $updates->{$name} );
+        $object->$name( $columns{$name} );
     }
     for my $name ( keys %other_methods) {
         $object->$name( $updates->{$name} ) if $object->can( $name );
@@ -103,7 +116,14 @@ sub recursive_update {
             my ($pk) = _get_pk_for_related( $self, $name);
             my @rows;
             my $result_source = $object->$name->result_source;
-            for my $elem ( @{ $updates->{$name} } ) {
+            my @updates;
+            if( ref $updates->{$name} ){
+                @updates = @{ $updates->{$name} };
+            }
+            else{
+                @updates = ( $updates->{$name} );
+            }
+            for my $elem ( @updates ) {
                 if ( ref $elem ) {
                     push @rows, $result_source->resultset->find($elem);
                 }

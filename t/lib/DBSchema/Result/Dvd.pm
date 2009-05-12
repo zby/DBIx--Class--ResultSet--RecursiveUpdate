@@ -8,11 +8,10 @@ use warnings;
 use base 'DBIx::Class';
 use overload '""' => sub {$_[0]->name}, fallback => 1;
 
-use lib '../../DBIx-Class-HTML-FormFu/lib/';
 __PACKAGE__->load_components(qw/IntrospectableM2M Core/);
 __PACKAGE__->table('dvd');
 __PACKAGE__->add_columns(
-  'id' => {
+  'dvd_id' => {
     data_type => 'integer',
     is_auto_increment => 1
   },
@@ -45,11 +44,11 @@ __PACKAGE__->add_columns(
     is_nullable => 1,
   },
 );
-__PACKAGE__->set_primary_key('id');
+__PACKAGE__->set_primary_key('dvd_id');
 __PACKAGE__->belongs_to('owner', 'DBSchema::Result::User', { id => 'owner' });
 __PACKAGE__->belongs_to('current_borrower', 'DBSchema::Result::User', { id => 'current_borrower' });
-__PACKAGE__->has_many('dvdtags', 'Dvdtag', { 'foreign.dvd' => 'self.id' });
-__PACKAGE__->has_many('viewings', 'DBSchema::Result::Viewing', { 'foreign.dvd_id' => 'self.id' });
+__PACKAGE__->has_many('dvdtags', 'Dvdtag', { 'foreign.dvd' => 'self.dvd_id' });
+__PACKAGE__->has_many('viewings', 'DBSchema::Result::Viewing', { 'foreign.dvd_id' => 'self.dvd_id' });
 __PACKAGE__->many_to_many('tags', 'dvdtags' => 'tag');
 __PACKAGE__->might_have(
     liner_notes => 'DBSchema::Result::LinerNotes', undef,
