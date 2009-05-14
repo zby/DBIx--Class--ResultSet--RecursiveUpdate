@@ -117,11 +117,14 @@ sub recursive_update {
             my @rows;
             my $result_source = $object->$name->result_source;
             my @updates;
-            if( ref $updates->{$name} ){
-                @updates = @{ $updates->{$name} };
+            if( ! defined $value ){
+                next;
+            }
+            elsif( ref $value ){
+                @updates = @{ $value };
             }
             else{
-                @updates = ( $updates->{$name} );
+                @updates = ( $value );
             }
             for my $elem ( @updates ) {
                 if ( ref $elem ) {
