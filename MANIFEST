@@ -25,3 +25,5 @@ t/lib/DBSchema/Result/Twokeys.pm
 t/lib/DBSchema/Result/Viewing.pm
 t/lib/DBSchema/Result/Onekey.pm
 t/lib/DBSchema/Result/Twokeys_belongsto.pm
+t/lib/DBSchema/Result/Address.pm
+
