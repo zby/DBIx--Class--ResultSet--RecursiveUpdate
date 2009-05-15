@@ -2,7 +2,7 @@ use strict;
 use warnings;
 package DBIx::Class::ResultSet::RecursiveUpdate;
 
-use version; our $VERSION = qv('0.006');
+use version; our $VERSION = qv('0.007');
 
 use base qw(DBIx::Class::ResultSet);
 

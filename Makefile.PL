@@ -13,7 +13,7 @@ WriteMakefile(
         'version'    => 0,
         'DBIx::Class' => '0.08100',
         'DBIx::Class::IntrospectableM2M' => 0,
-        'SQL::Translator' => '0.08',
+        'SQL::Translator' => '0.09004',
         'DateTime'   => 0,
         'DBD::SQLite' => '1.21',
     },
