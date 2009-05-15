@@ -306,14 +306,16 @@ This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.006
 The functional interface:
 
     my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update({ 
-        id => 1, 
-        owned_dvds => [ 
-        { 
-          title => 'One Flew Over the Cuckoo's Nest' 
-        } 
-        ] 
-      }
-    );
+        resultset => $schema->resultset( 'Dvd' ),
+        updates => {
+            id => 1, 
+            owned_dvds => [ 
+                { 
+                  title => 'One Flew Over the Cuckoo's Nest' 
+                } 
+            ] 
+        }
+    });
 
 
 As ResultSet subclass:
