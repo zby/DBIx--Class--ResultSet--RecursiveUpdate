@@ -2,7 +2,7 @@ use strict;
 use warnings;
 package DBIx::Class::ResultSet::RecursiveUpdate;
 
-use version; our $VERSION = qv('0.007');
+use version; our $VERSION = qv('0.008');
 
 use base qw(DBIx::Class::ResultSet);
 
@@ -162,8 +162,13 @@ sub _update_relation {
     my ( $self, $name, $updates, $object, $info ) = @_;
     my $related_result =
       $self->related_resultset($name)->result_source->resultset;
-    my $resolved =
-      $self->result_source->resolve_condition( $info->{cond}, $name, $object );
+    my $resolved;
+    if( $self->result_source->can( '_resolve_condition' ) ){
+        $resolved = $self->result_source->_resolve_condition( $info->{cond}, $name, $object );
+    }
+    else{
+        $resolved = $self->result_source->resolve_condition( $info->{cond}, $name, $object );
+    }
 
  #                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
     $resolved = undef
