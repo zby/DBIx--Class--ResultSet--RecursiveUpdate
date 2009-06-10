@@ -22,7 +22,8 @@ use Scalar::Util qw( blessed );
 
 sub recursive_update {
     my %params = @_;
-    my ( $self, $updates, $fixed_fields, $object ) = @params{ qw/resultset updates fixed_fields object/ }; 
+    my ( $self, $updates, $fixed_fields, $object, $resolved ) = @params{ qw/resultset updates fixed_fields object resolved/ }; 
+    $resolved ||= {};
     # warn 'entering: ' . $self->result_source->from();
     carp 'fixed fields needs to be an array ref' if $fixed_fields && ref($fixed_fields) ne 'ARRAY';
     my %fixed_fields;
@@ -30,6 +31,20 @@ sub recursive_update {
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
+    if ( $updates->{id} ){
+        $object = $self->find( $updates->{id}, { key => 'primary' } );
+    }
+    my @missing =
+      grep { !exists $updates->{$_} && !exists $fixed_fields{$_} } $self->result_source->primary_columns;
+    if ( !$object && !scalar @missing ) {
+        $object = $self->find( $updates, { key => 'primary' } );
+    }
+    @missing =
+      grep { !exists $resolved->{$_} } @missing;
+    if ( !$object && !scalar @missing ) {
+        $object = $self->find( \%{ %$updates, %$resolved }, { key => 'primary' } );
+    }
+    $object ||= $self->new( {} );
     # warn Dumper( $updates ); use Data::Dumper;
     # direct column accessors
     my %columns;
@@ -43,22 +58,12 @@ sub recursive_update {
     my %post_updates;
     my %other_methods;
     my %columns_by_accessor = _get_columns_by_accessor( $self );
+#    warn 'resolved: ' . Dumper( $resolved );
+    $updates = { %$updates, %$resolved };
+#    warn 'updates: ' . Dumper( $updates ); use Data::Dumper;
+#    warn 'columns: ' . Dumper( \%columns_by_accessor );
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
-        if( $name eq 'id'
-#            && scalar @{$source->primary_columns} == 1
-            && !$source->has_column( 'id' )
-        ){
-            my @ids = ( $updates->{id} );
-            if( ref $updates->{id} ){
-                @ids = @{ $updates->{id} };
-            }
-            my $i = 0;
-            for my $key ( $source->primary_columns ){
-                $columns{ $key } = $ids[ $i++ ];
-            }
-            next;
-        }
         if ( $columns_by_accessor{$name}
             && !( $source->has_relationship($name) && ref( $updates->{$name} ) )
           )
@@ -85,12 +90,6 @@ sub recursive_update {
     }
     # warn 'other: ' . Dumper( \%other_methods ); use Data::Dumper;
 
-    my @missing =
-      grep { !exists $columns{$_} && !exists $fixed_fields{$_} } $self->result_source->primary_columns;
-    if ( !$object && !scalar @missing ) {
-        $object = $self->find( \%columns, { key => 'primary' } );
-    }
-    $object ||= $self->new( {} );
     # first update columns and other accessors - so that later related records can be found
     for my $name ( keys %columns ) {
         $object->$name( $columns{$name} );
@@ -105,7 +104,9 @@ sub recursive_update {
 #    $self->_delete_empty_auto_increment($object);
 # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
+
     $object->update_or_insert;
+
 
     # updating many_to_many
     for my $name ( keys %$updates ) {
@@ -171,20 +172,18 @@ sub _update_relation {
     }
 
  #                    warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
-    $resolved = undef
+    $resolved = {}
       if defined $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
     if ( ref $updates->{$name} eq 'ARRAY' ) {
         for my $sub_updates ( @{ $updates->{$name} } ) {
-            $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
             my $sub_object =
-              recursive_update( resultset => $related_result, updates => $sub_updates );
+              recursive_update( resultset => $related_result, updates => $sub_updates, resolved => $resolved );
         }
     }
     else {
         my $sub_updates = $updates->{$name};
         my $sub_object;
         if( ref $sub_updates ){
-            $sub_updates = { %$sub_updates, %$resolved } if $resolved && ref( $sub_updates ) eq 'HASH';
             # for might_have relationship
             if( $info->{attrs}{accessor} eq 'single' && defined $object->$name ){
                 $sub_object = recursive_update( 
@@ -195,7 +194,7 @@ sub _update_relation {
             }
             else{ 
                 $sub_object =
-                recursive_update( resultset => $related_result, updates => $sub_updates );
+                recursive_update( resultset => $related_result, updates => $sub_updates, resolved => $resolved );
             }
         }
         elsif( ! ref $sub_updates ){
