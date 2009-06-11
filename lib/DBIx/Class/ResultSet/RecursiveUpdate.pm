@@ -22,7 +22,7 @@ use Scalar::Util qw( blessed );
 
 sub recursive_update {
     my %params = @_;
-    my ( $self, $updates, $fixed_fields, $object, $resolved ) = @params{ qw/resultset updates fixed_fields object resolved/ }; 
+    my ( $self, $updates, $fixed_fields, $object, $resolved, $if_not_submitted ) = @params{ qw/resultset updates fixed_fields object resolved if_not_submitted/ }; 
     $resolved ||= {};
     # warn 'entering: ' . $self->result_source->from();
     carp 'fixed fields needs to be an array ref' if $fixed_fields && ref($fixed_fields) ne 'ARRAY';
@@ -37,12 +37,15 @@ sub recursive_update {
     my @missing =
       grep { !exists $updates->{$_} && !exists $fixed_fields{$_} } $self->result_source->primary_columns;
     if ( !$object && !scalar @missing ) {
+#        warn 'finding by: ' . Dumper( $updates ); use Data::Dumper;
         $object = $self->find( $updates, { key => 'primary' } );
     }
+    $updates = { %$updates, %$resolved };
     @missing =
       grep { !exists $resolved->{$_} } @missing;
     if ( !$object && !scalar @missing ) {
-        $object = $self->find( \%{ %$updates, %$resolved }, { key => 'primary' } );
+#        warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
+        $object = $self->find( $updates, { key => 'primary' } );
     }
     $object ||= $self->new( {} );
     # warn Dumper( $updates ); use Data::Dumper;
@@ -59,7 +62,6 @@ sub recursive_update {
     my %other_methods;
     my %columns_by_accessor = _get_columns_by_accessor( $self );
 #    warn 'resolved: ' . Dumper( $resolved );
-    $updates = { %$updates, %$resolved };
 #    warn 'updates: ' . Dumper( $updates ); use Data::Dumper;
 #    warn 'columns: ' . Dumper( \%columns_by_accessor );
     for my $name ( keys %$updates ) {
@@ -99,7 +101,7 @@ sub recursive_update {
     }
     for my $name ( keys %pre_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates, $object, $info );
+        _update_relation( $self, $name, $updates, $object, $info, $if_not_submitted );
     }
 #    $self->_delete_empty_auto_increment($object);
 # don't allow insert to recurse to related objects - we do the recursion ourselves
@@ -142,7 +144,7 @@ sub recursive_update {
     }
     for my $name ( keys %post_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates, $object, $info );
+        _update_relation( $self, $name, $updates, $object, $info, $if_not_submitted );
     }
     return $object;
 }
@@ -160,7 +162,7 @@ sub _get_columns_by_accessor {
 }
 
 sub _update_relation {
-    my ( $self, $name, $updates, $object, $info ) = @_;
+    my ( $self, $name, $updates, $object, $info, $if_not_submitted ) = @_;
     my $related_result =
       $self->related_resultset($name)->result_source->resultset;
     my $resolved;
@@ -175,9 +177,23 @@ sub _update_relation {
     $resolved = {}
       if defined $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION == $resolved;
     if ( ref $updates->{$name} eq 'ARRAY' ) {
+        my @updated_ids;
         for my $sub_updates ( @{ $updates->{$name} } ) {
             my $sub_object =
               recursive_update( resultset => $related_result, updates => $sub_updates, resolved => $resolved );
+            push @updated_ids, $sub_object->id;
+        }
+        my @related_pks = $related_result->result_source->primary_columns;
+        if( defined $if_not_submitted && $if_not_submitted eq 'delete' ){
+            if ( 1 == scalar @related_pks ){
+                $object->$name->search( { $related_pks[0] => { -not_in => \@updated_ids } } )->delete;
+            }
+        }
+        elsif( defined $if_not_submitted && $if_not_submitted eq 'set_to_null' ){
+            if ( 1 == scalar @related_pks ){
+                my @fk = keys %$resolved;
+                $object->$name->search( { $related_pks[0] => { -not_in => \@updated_ids } } )->update( { $fk[0] => undef } );
+            }
         }
     }
     else {

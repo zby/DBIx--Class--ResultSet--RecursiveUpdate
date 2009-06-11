@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 30;
+    plan tests => 36;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -165,6 +165,40 @@ sub run_tests{
     $dvd = $dvd_rs->find( 1 );
     is( $dvd->get_column( 'owner' ), $user->id, 'foreign key set' );
 
+    $dvd_rs->update( { current_borrower => $user->id } );
+    ok( $user->borrowed_dvds->count > 1, 'Precond' );
+    $updates = {
+        id => $user->id,
+        borrowed_dvds =>[
+        {
+            id => $dvd->id
+        },
+        ]
+    };
+    $user = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+        resultset => $user_rs,
+        updates => $updates,
+        if_not_submitted => 'set_to_null',
+    );
+    is( $user->borrowed_dvds->count, 1, 'set_to_null' );
+
+    $dvd_rs->update( { current_borrower => $user->id } );
+    $updates = {
+        id => $user->id,
+        borrowed_dvds =>[
+        {
+            id => $dvd->id
+        },
+        ]
+    };
+    $user = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+        resultset => $user_rs,
+        updates => $updates,
+        if_not_submitted => 'delete',
+    );
+    is( $user->borrowed_dvds->count, 1, 'if_not_submitted delete' );
+
+ 
 #    $updates = {
 #            name => 'Test name 1',
 #    };
