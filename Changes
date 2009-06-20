@@ -1,5 +1,8 @@
 Revision history for DBIx-Class-RecursivePUT
 
+0.009  Sat Jun 20 16:37:57 CEST 2009
+       if_not_submitted flag (experimental)
+
 0.006  Fri May 15 11:03:48 CEST 2009
        Some adjustments for HTML::FormHandler
 

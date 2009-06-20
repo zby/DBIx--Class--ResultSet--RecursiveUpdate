@@ -113,7 +113,7 @@ sub run_tests{
             { dvd_name => $dvd->name, key2 => 1 }
             ],
     };
-    my $dvd_updated = $dvd_rs->recursive_update( $updates );
+    $dvd_updated = $dvd_rs->recursive_update( $updates );
     ok ( $schema->resultset( 'Twokeys' )->find( { dvd_name => 'New Test Name', key2 => 1 } ), 'Twokeys updated' );
     ok ( !$schema->resultset( 'Twokeys' )->find( { dvd_name => $dvd->name, key2 => 1 } ), 'Twokeys updated' );
  
