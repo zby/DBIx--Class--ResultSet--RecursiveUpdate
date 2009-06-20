@@ -10,7 +10,6 @@ WriteMakefile(
     PL_FILES            => {},
     PREREQ_PM => {
         'Test::More' => 0,
-        'version'    => 0,
         'DBIx::Class' => '0.08100',
         'DBIx::Class::IntrospectableM2M' => 0,
         'SQL::Translator' => '0.09004',
