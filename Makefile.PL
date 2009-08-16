@@ -15,6 +15,7 @@ WriteMakefile(
         'SQL::Translator' => '0.09004',
         'DateTime'   => 0,
         'DBD::SQLite' => '1.21',
+        'Readonly' => '1.03'
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'DBIx-Class-ResultSet-RecursiveUpdate-*' },
