@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 36;
+    plan tests => 40;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -117,7 +117,7 @@ sub run_tests{
     ok ( $schema->resultset( 'Twokeys' )->find( { dvd_name => 'New Test Name', key2 => 1 } ), 'Twokeys updated' );
     ok ( !$schema->resultset( 'Twokeys' )->find( { dvd_name => $dvd->name, key2 => 1 } ), 'Twokeys updated' );
  
-    # repeatable
+# repeatable
     
     $updates = {
         name  => 'temp name',
@@ -197,6 +197,21 @@ sub run_tests{
         if_not_submitted => 'delete',
     );
     is( $user->borrowed_dvds->count, 1, 'if_not_submitted delete' );
+
+    my @tags = $schema->resultset( 'Tag' )->search();
+    $dvd_updated = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+        resultset => $schema->resultset( 'Dvd' ),
+        updates => {
+            id => $dvd->dvd_id, # id instead of dvd_id
+            tags => [ { id => $tags[0]->id, file => 'file0'}, { id => $tags[1]->id, file => 'file1' } ], 
+        }
+    );
+    $tags[$_]->discard_changes for 0 .. 1;
+    is( $tags[0]->file, 'file0', 'file set in tag' );
+    is( $tags[1]->file, 'file1', 'file set in tag' );
+    my @rel_tags = $dvd_updated->tags;
+    is( scalar @rel_tags, 2, 'tags related' );
+    ok( $rel_tags[0]->file eq 'file0' || $rel_tags[0]->file eq 'file1', 'tags related' );
 
  
 #    $updates = {
