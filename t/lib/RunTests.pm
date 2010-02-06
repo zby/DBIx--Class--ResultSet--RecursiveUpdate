@@ -198,7 +198,7 @@ sub run_tests{
     );
     is( $user->borrowed_dvds->count, 1, 'if_not_submitted delete' );
 
-    my @tags = $schema->resultset( 'Tag' )->search();
+    @tags = $schema->resultset( 'Tag' )->search();
     $dvd_updated = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
         resultset => $schema->resultset( 'Dvd' ),
         updates => {
