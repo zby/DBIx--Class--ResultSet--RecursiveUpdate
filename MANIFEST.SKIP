@@ -1,0 +1,14 @@
+#defaults
+^Makefile$
+^blib/
+^pm_to_blib$
+^MANIFEST.bak$
+^MANIFEST.SKIP$
+.git/
+.gitignore$
+^*.tar.gz$
+^*.bak$
+^t/lib/DBICTest
+^*.new$
+^*.old$
+^t/96multi_create.t$

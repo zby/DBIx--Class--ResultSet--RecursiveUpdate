@@ -1,24 +1,28 @@
 use strict;
 use warnings;
-use ExtUtils::MakeMaker;
+use inc::Module::Install 0.91;
 
-WriteMakefile(
-    NAME                => 'DBIx::Class::ResultSet::RecursiveUpdate',
-    AUTHOR              => 'Zbigniew Lukasiak <zby@cpan.org>',
-    VERSION_FROM        => 'lib/DBIx/Class/ResultSet/RecursiveUpdate.pm',
-    ABSTRACT_FROM       => 'lib/DBIx/Class/ResultSet/RecursiveUpdate.pm',
-    PL_FILES            => {},
-    PREREQ_PM => {
-        'Test::More' => 0,
-        'DBIx::Class' => '0.08100',
-        'DBIx::Class::IntrospectableM2M' => 0,
-        'SQL::Translator' => '0.09004',
-        'DateTime'   => 0,
-        'DBD::SQLite' => '1.21',
-        'Readonly' => '1.03'
-    },
-    dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean               => { FILES => 'DBIx-Class-ResultSet-RecursiveUpdate-*' },
-    LICENSE             => 'perl'
-);
+name 'DBIx-Class-ResultSet-RecursiveUpdate';
+author 'Zbigniew Lukasiak';
+all_from 'lib/DBIx/Class/ResultSet/RecursiveUpdate.pm';
+license 'perl';
+
+repository 'http://github.com/zby/DBIx--Class--ResultSet--RecursiveUpdate/tree/master';
+
+# prereqs
+requires 'DBIx::Class' => '0.08100';
+requires 'DBIx::Class::IntrospectableM2M';
+requires 'SQL::Translator' => '0.09004';
+requires 'DateTime';
+requires 'DBD::SQLite' => '1.21';
+requires 'Readonly' => '1.03';
+
+# things the tests need
+test_requires 'Test::More'      => '0.88';
+
+tests();
+
+auto_install();
+
+WriteAll();
 
