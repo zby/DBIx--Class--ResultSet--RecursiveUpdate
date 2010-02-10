@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::LinerNotes;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('liner_notes');
 __PACKAGE__->add_columns(
@@ -17,13 +17,5 @@ __PACKAGE__->set_primary_key('liner_id');
 __PACKAGE__->belongs_to(
   'cd', 'DBICTest::Schema::CD', 'liner_id'
 );
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::LinerNotes::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
-
 
 1;

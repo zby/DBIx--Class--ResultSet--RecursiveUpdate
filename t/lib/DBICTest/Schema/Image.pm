@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::Image;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('images');
 __PACKAGE__->add_columns(
@@ -24,12 +24,5 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('id');
 __PACKAGE__->belongs_to('artwork', 'DBICTest::Schema::Artwork', 'artwork_id');
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::Image::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
 
 1;

@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::LyricVersion;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('lyric_versions');
 __PACKAGE__->add_columns(
@@ -20,12 +20,5 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key('id');
 __PACKAGE__->belongs_to('lyric', 'DBICTest::Schema::Lyrics', 'lyric_id');
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::LyricVersion::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
 
 1;
