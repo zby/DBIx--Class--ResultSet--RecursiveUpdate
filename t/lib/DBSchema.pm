@@ -25,6 +25,13 @@ sub get_test_schema {
     my $deploy_attrs;
     $deploy_attrs->{add_drop_table} = 1 if tables_exist( $dsn, $user, $pass );
     $schema->deploy( $deploy_attrs );
+    $schema->populate('Personality', [
+        [ qw/user_id / ],
+        [ '1'],
+        [ '2' ],
+        [ '3'],
+        ]
+    );
     $schema->populate('User', [
         [ qw/username name password / ],
         [ 'jgda', 'Jonas Alves', ''],
