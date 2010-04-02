@@ -208,15 +208,17 @@ sub _update_relation {
                     object =>  $object->$name 
                 );
             }
-            else{ 
+            else{
                 $sub_object =
                 recursive_update( resultset => $related_result, updates => $sub_updates, resolved => $resolved );
             }
         }
         elsif( ! ref $sub_updates ){
-            $sub_object = $related_result->find( $sub_updates );
+            $sub_object = $related_result->find( $sub_updates ) 
+             unless (!$sub_updates && ($info->{attrs}{join_type} eq 'LEFT'));
         }
-        $object->set_from_related( $name, $sub_object );
+        $object->set_from_related( $name, $sub_object )
+          unless (!$sub_object && !$sub_updates && ($info->{attrs}{join_type} eq 'LEFT'));
     }
 }
 
