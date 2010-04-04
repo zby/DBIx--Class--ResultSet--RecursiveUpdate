@@ -10,12 +10,28 @@ use DateTime;
 
 __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
 
+sub tables_exist {
+    my ( $dsn, $user, $pass ) = @_;
+    my $dbh = DBI->connect($dsn, $user, $pass, );
+    return $dbh->tables( '%', '%', 'dvd', );
+}
+
+
 sub get_test_schema {
     my ( $dsn, $user, $pass ) = @_;
     $dsn ||= 'dbi:SQLite:dbname=t/var/dvdzbr.db';
     warn "testing $dsn";
     my $schema = __PACKAGE__->connect( $dsn, $user, $pass, {} );
-    $schema->deploy({ add_drop_table => 1, });
+    my $deploy_attrs;
+    $deploy_attrs->{add_drop_table} = 1 if tables_exist( $dsn, $user, $pass );
+    $schema->deploy( $deploy_attrs );
+    $schema->populate('Personality', [
+        [ qw/user_id / ],
+        [ '1'],
+        [ '2' ],
+        [ '3'],
+        ]
+    );
     $schema->populate('User', [
         [ qw/username name password / ],
         [ 'jgda', 'Jonas Alves', ''],

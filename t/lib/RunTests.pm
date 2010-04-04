@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 40;
+    plan tests => 41;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -213,7 +213,15 @@ sub run_tests{
     is( scalar @rel_tags, 2, 'tags related' );
     ok( $rel_tags[0]->file eq 'file0' || $rel_tags[0]->file eq 'file1', 'tags related' );
 
+    my $new_person = {
+        name  => 'Amiri Barksdale',
+        username => 'amiri',
+        password => 'amiri',
+    };
+    ok(my $new_user = $user_rs->recursive_update( $new_person ));
  
+    #print STDERR Dumper $new_user;
+
 #    $updates = {
 #            name => 'Test name 1',
 #    };
