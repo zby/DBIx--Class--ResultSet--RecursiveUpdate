@@ -107,8 +107,7 @@ sub recursive_update {
 # don't allow insert to recurse to related objects - we do the recursion ourselves
 #    $object->{_rel_in_storage} = 1;
 
-    $object->update_or_insert;
-
+    $object->update_or_insert if $object->is_changed;
 
     # updating many_to_many
     for my $name ( keys %$updates ) {
@@ -214,7 +213,7 @@ sub _update_relation {
             }
         }
         elsif( ! ref $sub_updates ){
-            $sub_object = $related_result->find( $sub_updates ) 
+            $sub_object = $related_result->find( $sub_updates )
              unless (!$sub_updates && ($info->{attrs}{join_type} eq 'LEFT'));
         }
         $object->set_from_related( $name, $sub_object )

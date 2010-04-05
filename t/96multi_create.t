@@ -6,7 +6,7 @@ use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
 
-plan tests => 95;
+plan tests => 98;
 
 my $schema = DBICTest->init_schema();
 
@@ -737,5 +737,29 @@ eval {
   );
 };
 diag $@ if $@;
+
+
+## Test for the might_have is allowed empty bug (should check and see if this
+## needs patching upstream to DBIC
+
+use DBIx::Class::ResultSet::RecursiveUpdate;
+
+my $might_have = {
+    artwork => undef,
+    liner_notes => undef,
+    tracks => [{title=>'hello', pos=>'100'}],
+    single_track_row => undef,
+}; 
+
+ok my $might_have_cd_rs = $schema->resultset('CD'), 'got a good resultset';
+ok my $might_have_cd_row = $might_have_cd_rs->first, 'got cd to test';
+
+DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+    resultset => $might_have_cd_rs,
+    updates => $might_have,
+    object => $might_have_cd_row,
+);
+
+ok $schema->resultset('Track')->recursive_update($might_have), 'handled might_have';
 
 1;

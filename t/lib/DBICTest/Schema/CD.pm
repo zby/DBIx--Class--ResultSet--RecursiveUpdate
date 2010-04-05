@@ -38,7 +38,7 @@ __PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, {
 });
 
 # in case this is a single-cd it promotes a track from another cd
-__PACKAGE__->belongs_to( single_track => 'DBICTest::Schema::Track' );
+__PACKAGE__->belongs_to( single_track_row => 'DBICTest::Schema::Track', {'foreign.trackid'=>'self.single_track'} );
 
 __PACKAGE__->has_many( tracks => 'DBICTest::Schema::Track' );
 __PACKAGE__->has_many(
