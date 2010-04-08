@@ -1,5 +1,8 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
+0.013  Thu Apr 08 15:37:13 UTC  2010
+       Allow might_have relationships to be empty
+
 0.012  Thu Sep 10 19:44:25 CEST 2009 
        updating records linked to by many to many
 
