@@ -1,26 +1,163 @@
-DBIx-Class-RecursiveUpdate version 0.0.1
+NAME
+    DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but
+    recursive
 
-You can feed the ->create method with a recursive datastructure and have the related records
-created.  Unfortunately you cannot do a similar thing with update_or_create - this module
-tries to fill that void. 
+VERSION
+    This document describes DBIx::Class::ResultSet::RecursiveUpdate version
+    0.006
 
-INSTALLATION
+SYNOPSIS
+    The functional interface:
 
-To install this module, run the following commands:
+        my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update({ 
+            resultset => $schema->resultset( 'Dvd' ),
+            updates => {
+                id => 1, 
+                owned_dvds => [ 
+                    { 
+                      title => 'One Flew Over the Cuckoo's Nest' 
+                    } 
+                ] 
+            }
+        });
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+    As ResultSet subclass:
 
+        __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
+
+    in the Schema file (see t/lib/DBSchema.pm). Or appriopriate 'use base'
+    in the ResultSet classes.
+
+    Then:
+
+        my $user = $user_rs->recursive_update( { 
+            id => 1, 
+            owned_dvds => [ 
+            { 
+              title => 'One Flew Over the Cuckoo's Nest' 
+            } 
+            ] 
+          }
+        );
+
+DESCRIPTION
+This is still experimental. I've added a functional interface so that it can be used 
+in Form Processors and not require modification of the model.
+    You can feed the ->create method with a recursive datastructure and have
+    the related records created. Unfortunately you cannot do a similar thing
+    with update_or_create - this module tries to fill that void.
+
+    It is a base class for ResultSets providing just one method:
+    recursive_update which works just like update_or_create but can
+    recursively update or create data objects composed of multiple rows. All
+    rows need to be identified by primary keys - so you need to provide them
+    in the update structure (unless they can be deduced from the parent row
+    - for example when you have a belongs_to relationship). If not all
+    colums comprising the primary key are specified - then a new row will be
+    created, with the expectation that the missing columns will be filled by
+    it (as in the case of auto_increment primary keys).
+
+    If the resultset itself stores an assignement for the primary key, like
+    in the case of:
+
+        my $restricted_rs = $user_rs->search( { id => 1 } );
+
+    then you need to inform recursive_update about additional predicate with
+    a second argument:
+
+        my $user = $restricted_rs->recursive_update( { 
+            owned_dvds => [ 
+            { 
+              title => 'One Flew Over the Cuckoo's Nest' 
+            } 
+            ] 
+          },
+          [ 'id' ]
+        );
+
+    This will work with a new DBIC release.
+
+    For a many_to_many (pseudo) relation you can supply a list of primary
+    keys from the other table - and it will link the record at hand to those
+    and only those records identified by them. This is convenient for
+    handling web forms with check boxes (or a SELECT box with multiple
+    choice) that let you update such (pseudo) relations.
+
+    For a description how to set up base classes for ResultSets see
+    load_namespaces in DBIx::Class::Schema.
+
+DESIGN CHOICES
+  Treatment of many to many pseudo relations
+    The function gets the information about m2m relations from
+    DBIx::Class::IntrospectableM2M. If it is not loaded in the ResultSource
+    classes - then the code relies on the fact that: if($object->can($name)
+    and !$object->result_source->has_relationship($name) and $object->can(
+    'set_' . $name ) )
+
+    then $name must be a many to many pseudo relation. And that in a
+    similarly ugly was I find out what is the ResultSource of objects from
+    that many to many pseudo relation.
+
+INTERFACE
+METHODS
+  recursive_update
+    The method that does the work here.
+
+  is_m2m
+    $self->is_m2m( 'name ' ) - answers the question if 'name' is a many to
+    many (pseudo) relation on $self.
+
+  get_m2m_source
+    $self->get_m2m_source( 'name' ) - returns the ResultSource linked to by
+    the many to many (pseudo) relation 'name' from $self.
+
+DIAGNOSTICS
+CONFIGURATION AND ENVIRONMENT
+    DBIx::Class::RecursiveUpdate requires no configuration files or
+    environment variables.
 
 DEPENDENCIES
+        DBIx::Class
 
-See Makefile.PL
+INCOMPATIBILITIES
+    None reported.
 
-COPYRIGHT AND LICENCE
+BUGS AND LIMITATIONS
+    No bugs have been reported.
 
-Copyright (C) 2008, Zbigniew Lukasiak
+    Please report any bugs or feature requests to
+    "bug-dbix-class-recursiveput@rt.cpan.org", or through the web interface
+    at <http://rt.cpan.org>.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+AUTHOR
+    Zbigniew Lukasiak "<zby@cpan.org>" Influenced by code by Pedro Melo.
+
+LICENCE AND COPYRIGHT
+    Copyright (c) 2008, Zbigniew Lukasiak "<zby@cpan.org>". All rights
+    reserved.
+
+    This module is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself. See perlartistic.
+
+DISCLAIMER OF WARRANTY
+    BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+    FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
+    OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+    PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+    EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
+    ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
+    YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
+    NECESSARY SERVICING, REPAIR, OR CORRECTION.
+
+    IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+    WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+    REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE LIABLE
+    TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL, OR
+    CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE
+    SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
+    RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
+    FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
+    SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+    DAMAGES.
+
