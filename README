@@ -2,10 +2,6 @@ NAME
     DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but
     recursive
 
-VERSION
-    This document describes DBIx::Class::ResultSet::RecursiveUpdate version
-    0.006
-
 SYNOPSIS
     The functional interface:
 

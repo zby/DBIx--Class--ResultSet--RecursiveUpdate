@@ -316,12 +316,6 @@ __END__
 
 DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but recursive
 
-
-=head1 VERSION
-
-This document describes DBIx::Class::ResultSet::RecursiveUpdate version 0.006
-
-
 =head1 SYNOPSIS
 
 The functional interface:
