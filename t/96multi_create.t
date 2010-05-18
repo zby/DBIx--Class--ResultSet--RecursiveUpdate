@@ -754,12 +754,16 @@ my $might_have = {
 ok my $might_have_cd_rs = $schema->resultset('CD'), 'got a good resultset';
 ok my $might_have_cd_row = $might_have_cd_rs->first, 'got cd to test';
 
+my $track = $schema->resultset ('Track')->next;
+$might_have_cd_row->single_track_row( $track );
+$might_have_cd_row->update;
+
 DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
     resultset => $might_have_cd_rs,
     updates => $might_have,
     object => $might_have_cd_row,
 );
 
-ok $schema->resultset('Track')->recursive_update($might_have), 'handled might_have';
+is( $might_have_cd_row->single_track, undef, 'Might have deleted' );
 
 1;
