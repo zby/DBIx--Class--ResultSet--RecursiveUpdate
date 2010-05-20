@@ -12,7 +12,7 @@ repository 'http://github.com/zby/DBIx--Class--ResultSet--RecursiveUpdate/tree/m
 # prereqs
 requires 'DBIx::Class' => '0.08100';
 requires 'DBIx::Class::IntrospectableM2M';
-requires 'SQL::Translator' => '0.09004';
+requires 'SQL::Translator' => '0.11005';
 requires 'DateTime';
 requires 'DBD::SQLite' => '1.21';
 requires 'Readonly' => '1.03';
