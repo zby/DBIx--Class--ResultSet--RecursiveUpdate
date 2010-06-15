@@ -1,7 +1,7 @@
 package # hide from PAUSE 
     DBICTest::Schema::Tag;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('tags');
 __PACKAGE__->add_columns(
@@ -20,12 +20,5 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('tagid');
 
 __PACKAGE__->belongs_to( cd => 'DBICTest::Schema::CD' );
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::Tag::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
 
 1;

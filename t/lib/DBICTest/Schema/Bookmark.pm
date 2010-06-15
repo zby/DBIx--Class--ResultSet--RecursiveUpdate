@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Bookmark;
 
-    use base 'DBIx::Class::Core';
+    use base qw/DBICTest::BaseResult/;
 
 
 use strict;
@@ -15,18 +15,11 @@ __PACKAGE__->add_columns(
     },
     'link' => {
         data_type => 'integer',
+        is_nullable => 1,
     },
 );
 
 __PACKAGE__->set_primary_key('id');
-__PACKAGE__->belongs_to(link => 'DBICTest::Schema::Link' );
-
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::Bookmark::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
+__PACKAGE__->belongs_to(link => 'DBICTest::Schema::Link', 'link', { on_delete => 'SET NULL' } );
 
 1;

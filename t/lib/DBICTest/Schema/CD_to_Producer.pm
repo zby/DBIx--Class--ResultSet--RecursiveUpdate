@@ -1,12 +1,13 @@
 package # hide from PAUSE 
     DBICTest::Schema::CD_to_Producer;
 
-use base 'DBIx::Class::Core';
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('cd_to_producer');
 __PACKAGE__->add_columns(
   cd => { data_type => 'integer' },
   producer => { data_type => 'integer' },
+  attribute => { data_type => 'integer', is_nullable => 1 },
 );
 __PACKAGE__->set_primary_key(qw/cd producer/);
 
@@ -20,12 +21,5 @@ __PACKAGE__->belongs_to(
   { 'foreign.producerid' => 'self.producer' },
   { on_delete => undef, on_update => undef },
 );
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::CD_to_Producer::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
 
 1;

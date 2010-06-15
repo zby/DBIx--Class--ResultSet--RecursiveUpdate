@@ -5,20 +5,27 @@ use Test::More;
 use Test::Exception;
 use lib qw(t/lib);
 use DBICTest;
+use DBIx::Class::ResultSet::RecursiveUpdate;
 
 plan tests => 95;
 
 my $schema = DBICTest->init_schema();
 
+my $resultset;
+my $updates;
+
 diag '* simple create + parent (the stuff $rs belongs_to)';
 eval {
-  my $cd = $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => { 
       name => 'Fred Bloggs' 
     },
     title => 'Some CD',
     year => 1996
-  });
+  };
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok($cd, 'DBICTest::CD', 'Created CD object');
   isa_ok($cd->artist, 'DBICTest::Artist', 'Created related Artist');
@@ -28,17 +35,19 @@ diag $@ if $@;
 
 diag '* same as above but the child and parent have no values, except for an explicit parent pk';
 eval {
-  my $bm_rs = $schema->resultset('Bookmark');
-  my $bookmark = $bm_rs->recursive_update({
+  $resultset = $schema->resultset('Bookmark');
+  $updates = {
     link => {
       id => 66,
     },
-  });
+  };
+  my $bookmark = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
-  isa_ok($bookmark, 'DBICTest::Bookmark', 'Created Bookrmark object');
+  isa_ok($bookmark, 'DBICTest::Bookmark', 'Created Bookmark object');
   isa_ok($bookmark->link, 'DBICTest::Link', 'Created related Link');
   is (
-    $bm_rs->search (
+    $resultset->search (
       { 'link.title' => $bookmark->link->title },
       { join => 'link' },
     )->count,
@@ -51,7 +60,8 @@ diag $@ if $@;
 diag '* Create m2m while originating in the linker table';
 eval {
   my $artist = $schema->resultset('Artist')->first;
-  my $c2p = $schema->resultset('CD_to_Producer')->recursive_update({
+  $resultset = $schema->resultset('CD_to_Producer');
+  $updates = {
     cd => {
       artist => $artist,
       title => 'Bad investment',
@@ -65,7 +75,9 @@ eval {
     producer => {
       name => 'Lehman Bros.',
     },
-  });
+  };
+  my $c2p = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok ($c2p, 'DBICTest::CD_to_Producer', 'Linker object created');
   my $prod = $schema->resultset ('Producer')->find ({ name => 'Lehman Bros.' });
@@ -93,7 +105,8 @@ DG
 
 eval {
   my $artist = $schema->resultset('Artist')->first;
-  my $cd = $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => $artist,
     title => 'Music to code by at night',
     year => 2008,
@@ -128,7 +141,9 @@ eval {
         },
       },
     ],
-  });
+  };
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
   is ($cd->title, 'Music to code by at night', 'Correct CD title');
@@ -168,7 +183,8 @@ DG
 
 eval {
   my $cd = $schema->resultset('CD')->first;
-  my $track = $schema->resultset('Track')->recursive_update({
+  $resultset = $schema->resultset('Track');
+  $updates = {
     cd => $cd,
     pos => 77,  # some day me might test this with Ordered
     title => 'Multicreate rocks',
@@ -199,7 +215,9 @@ eval {
         },
       ]
     },
-  });
+  };
+  my $track = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok ($track, 'DBICTest::Track', 'Main Track object created');
   is ($track->title, 'Multicreate rocks', 'Correct Track title');
@@ -223,7 +241,8 @@ diag $@ if $@;
 diag '* Test might_have again but with a PK == FK in the middle (obviously not specified)';
 eval {
   my $artist = $schema->resultset('Artist')->first;
-  my $cd = $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => $artist,
     title => 'Music to code by at twilight',
     year => 2008,
@@ -233,8 +252,10 @@ eval {
         { name => 'tail packing' },
       ],
     },
-  });
+  };
 
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
   isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
   is ($cd->title, 'Music to code by at twilight', 'Correct CD title');
   isa_ok ($cd->artwork, 'DBICTest::Artwork', 'Artwork created');
@@ -267,7 +288,8 @@ diag $@ if $@;
 diag '* Test might_have again but with just a PK and FK (neither specified) in the mid-table';
 eval {
   my $cd = $schema->resultset('CD')->first;
-  my $track = $schema->resultset ('Track')->recursive_update({
+  $resultset = $schema->resultset ('Track');
+  $updates = {
     cd => $cd,
     pos => 66,
     title => 'Black',
@@ -277,7 +299,9 @@ eval {
         { text => 'The colour black' },
       ],
     },
-  });
+  };
+  my $track = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok ($track, 'DBICTest::Track', 'Main track object created');
   is ($track->title, 'Black', 'Correct track title');
@@ -324,7 +348,8 @@ DG
 
 eval {
   my $someartist = $schema->resultset('Artist')->first;
-  my $cd = $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => $someartist,
     title => 'Music to code by until the cows come home',
     year => 2008,
@@ -334,7 +359,9 @@ eval {
         { artist => { name => 'billy the kid' } },
       ],
     },
-  });
+  };
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   isa_ok ($cd, 'DBICTest::CD', 'Main CD object created');
   is ($cd->title, 'Music to code by until the cows come home', 'Correct CD title');
@@ -363,7 +390,8 @@ diag $@ if $@;
 
 diag '* Nested find_or_create';
 eval {
-  my $newartist2 = $schema->resultset('Artist')->recursive_update({ 
+  my $resultset = $schema->resultset('Artist');
+  $updates = {
     name => 'Fred 3',
     cds => [
       { 
@@ -371,14 +399,17 @@ eval {
         year => 2007,
       },
     ],
-  });
+  };
+  my $newartist2 = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
   is($newartist2->name, 'Fred 3', 'Created new artist with cds via find_or_create');
 };
 diag $@ if $@;
 
 diag '* Multiple same level has_many create';
 eval {
-  my $artist2 = $schema->resultset('Artist')->recursive_update({
+  my $resultset = $schema->resultset('Artist');
+  $updates = {
     name => 'Fred 4',
     cds => [
       {
@@ -393,7 +424,9 @@ eval {
         year => 2007,
       },
     ]
-  });
+  };
+  my $artist2 = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   is($artist2->in_storage, 1, 'artist with duplicate rels inserted okay');
 };
@@ -403,8 +436,8 @@ diag '* First create_related pass';
 eval {
 	my $artist = $schema->resultset('Artist')->first;
 	
-	my $cd_result = $schema->resultset('CD')->recursive_update({
-        
+	my $resultset = $schema->resultset('CD');
+    $updates = {  
         artist => $artist->artistid,
 		title => 'TestOneCD1',
 		year => 2007,
@@ -418,7 +451,9 @@ eval {
 			}
 		],
 
-	});
+	};
+    my $cd_result = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 	
 	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
 	ok( $cd_result->title eq "TestOneCD1", "Got Expected Title");
@@ -438,8 +473,8 @@ diag '* second create_related with same arguments';
 eval {
 	my $artist = $schema->resultset('Artist')->first;
 	
-	my $cd_result = $schema->resultset('CD')->recursive_update({
-        
+	my $resultset = $schema->resultset('CD');
+    $updates = { 
         artist => $artist->artistid,
 	
 		title => 'TestOneCD2',
@@ -456,7 +491,9 @@ eval {
 
     liner_notes => { notes => 'I can haz liner notes?' },
 
-	});
+	};
+  my $cd_result = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 	
 	ok( $cd_result && ref $cd_result eq 'DBICTest::CD', "Got Good CD Class");
 	ok( $cd_result->title eq "TestOneCD2", "Got Expected Title");
@@ -475,10 +512,13 @@ diag $@ if $@;
 
 diag '* create of parents of a record linker table';
 eval {
-  my $cdp = $schema->resultset('CD_to_Producer')->recursive_update({
+  my $resultset = $schema->resultset('CD_to_Producer');
+  $updates = {
     cd => { artist => 1, title => 'foo', year => 2000 },
     producer => { name => 'jorge' }
-  });
+  };
+  my $cdp = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
   ok($cdp, 'join table record created ok');
 };
 diag $@ if $@;
@@ -486,7 +526,7 @@ diag $@ if $@;
 
 diag '* Create foreign key col obj including PK (See test 20 in 66relationships.t)';
 eval {
-  my $new_cd_hashref = { 
+  my $updates = { 
     cdid => 27, 
     title => 'Boogie Woogie', 
     year => '2007', 
@@ -494,27 +534,32 @@ eval {
   };
 
   my $cd = $schema->resultset("CD")->find(1);
-
   is($cd->artist->id, 1, 'rel okay');
+  my $resultset = $schema->resultset('CD');
 
-  my $new_cd = $schema->resultset("CD")->recursive_update($new_cd_hashref);
+  my $new_cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
   is($new_cd->artist->id, 17, 'new id retained okay');
 };
 diag $@ if $@;
 
 eval {
-	$schema->resultset("CD")->recursive_update({ 
+    $resultset = $schema->resultset('CD');
+    $updates = {
               cdid => 28, 
               title => 'Boogie Wiggle', 
               year => '2007', 
               artist => { artistid => 18, name => 'larry' }
-             });
+             };
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 };
 is($@, '', 'new cd created without clash on related artist');
 
 diag '* Test multi create over many_to_many';
 eval {
-  $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => {
       name => 'larry', # should already exist
     },
@@ -523,7 +568,9 @@ eval {
     cd_to_producer => [
       { producer => { name => 'Cowboy Neal' } },
     ],
-  });
+  };
+  my $cd = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   my $m2m_cd = $schema->resultset('CD')->search ({ title => 'Warble Marble'});
   is ($m2m_cd->count, 1, 'One CD row created via M2M create');
@@ -543,7 +590,8 @@ eval {
   my $greatest_collections = $schema->resultset('Genre')->create( { name => '"Greatest" collections' } );
   my $greatest_collections2 = $schema->resultset('Genre')->create( { name => '"Greatest" collections2' } );
 
-  $schema->resultset('CD')->recursive_update({
+  $resultset = $schema->resultset('CD');
+  $updates = {
     artist => {
       name => 'james',
     },
@@ -646,7 +694,9 @@ eval {
         },
       },
     ],
-  });
+  };
+  DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update( 
+     resultset => $resultset, updates => $updates );
 
   is ($schema->resultset ('Artist')->count, $counts->{Artist} + 4, '4 new artists created');
   is ($schema->resultset ('Genre')->count, $counts->{Genre} + 2, '2 additional genres created');

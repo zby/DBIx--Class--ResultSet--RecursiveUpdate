@@ -1,7 +1,7 @@
 package # hide from PAUSE
     DBICTest::Schema::Artwork_to_Artist;
 
-use base qw/DBIx::Class::Core/;
+use base qw/DBICTest::BaseResult/;
 
 __PACKAGE__->table('artwork_to_artist');
 __PACKAGE__->add_columns(
@@ -17,12 +17,5 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key(qw/artwork_cd_id artist_id/);
 __PACKAGE__->belongs_to('artwork', 'DBICTest::Schema::Artwork', 'artwork_cd_id');
 __PACKAGE__->belongs_to('artist', 'DBICTest::Schema::Artist', 'artist_id');
-
-__PACKAGE__->resultset_class( __PACKAGE__ . '::ResultSet');
-
-package DBICTest::Schema::Artwork_to_Artist::ResultSet;
-
-use base qw( DBIx::Class::ResultSet::RecursiveUpdate );
-
 
 1;

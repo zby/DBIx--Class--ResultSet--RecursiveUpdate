@@ -3,6 +3,7 @@ package # hide from PAUSE
 
 use strict;
 use warnings;
+use DBICTest::AuthorCheck;
 use DBICTest::Schema;
 
 =head1 NAME
@@ -31,7 +32,7 @@ DBIx::Class.
     no_populate=>1,
     storage_type=>'::DBI::Replicated',
     storage_type_args=>{
-    	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
+      balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
     },
   );
 
@@ -47,7 +48,7 @@ default, unless the no_deploy or no_populate flags are set.
 =cut
 
 sub has_custom_dsn {
-	return $ENV{"DBICTEST_DSN"} ? 1:0;
+    return $ENV{"DBICTEST_DSN"} ? 1:0;
 }
 
 sub _sqlite_dbfilename {
@@ -58,7 +59,7 @@ sub _sqlite_dbname {
     my $self = shift;
     my %args = @_;
     return $self->_sqlite_dbfilename if $args{sqlite_use_file} or $ENV{"DBICTEST_SQLITE_USE_FILE"};
-	return ":memory:";
+    return ":memory:";
 }
 
 sub _database {
@@ -74,7 +75,7 @@ sub _database {
     my $dbuser = $ENV{"DBICTEST_DBUSER"} || '';
     my $dbpass = $ENV{"DBICTEST_DBPASS"} || '';
 
-    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1 });
+    my @connect_info = ($dsn, $dbuser, $dbpass, { AutoCommit => 1, %args });
 
     return @connect_info;
 }
@@ -84,7 +85,7 @@ sub init_schema {
     my %args = @_;
 
     my $schema;
-    
+
     if ($args{compose_connection}) {
       $schema = DBICTest::Schema->compose_connection(
                   'DBICTest', $self->_database(%args)
@@ -93,8 +94,8 @@ sub init_schema {
       $schema = DBICTest::Schema->compose_namespace('DBICTest');
     }
     if( $args{storage_type}) {
-    	$schema->storage_type($args{storage_type});
-    }    
+      $schema->storage_type($args{storage_type});
+    }
     if ( !$args{no_connect} ) {
       $schema = $schema->connect($self->_database(%args));
       $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
@@ -126,7 +127,7 @@ sub deploy_schema {
     my $args = shift || {};
 
     if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
-        $schema->deploy($args);    
+        $schema->deploy($args);
     } else {
         open IN, "t/lib/sqlite.sql";
         my $sql;
@@ -134,7 +135,7 @@ sub deploy_schema {
         close IN;
         for my $chunk ( split (/;\s*\n+/, $sql) ) {
           if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
-            $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
+            $schema->storage->dbh_do(sub { $_[1]->do($chunk) }) or print "Error on SQL: $chunk\n";
           }
         }
     }
@@ -154,6 +155,11 @@ sub populate_schema {
     my $self = shift;
     my $schema = shift;
 
+    $schema->populate('Genre', [
+      [qw/genreid name/],
+      [qw/1       emo  /],
+    ]);
+
     $schema->populate('Artist', [
         [ qw/artistid name/ ],
         [ 1, 'Caterwauler McCrae' ],
@@ -162,8 +168,8 @@ sub populate_schema {
     ]);
 
     $schema->populate('CD', [
-        [ qw/cdid artist title year/ ],
-        [ 1, 1, "Spoonful of bees", 1999 ],
+        [ qw/cdid artist title year genreid/ ],
+        [ 1, 1, "Spoonful of bees", 1999, 1 ],
         [ 2, 1, "Forkful of bees", 2001 ],
         [ 3, 1, "Caterwaulin' Blues", 1997 ],
         [ 4, 2, "Generic Manufactured Singles", 2001 ],
@@ -242,7 +248,7 @@ sub populate_schema {
     
     $schema->populate('TreeLike', [
         [ qw/id parent name/ ],
-        [ 1, undef, 'root' ],        
+        [ 1, undef, 'root' ],
         [ 2, 1, 'foo'  ],
         [ 3, 2, 'bar'  ],
         [ 6, 2, 'blop' ],
@@ -309,7 +315,7 @@ sub populate_schema {
     ]);
 
     $schema->populate('Owners', [
-        [ qw/ownerid name/ ],
+        [ qw/id name/ ],
         [ 1, "Newton" ],
         [ 2, "Waltham" ],
     ]);
