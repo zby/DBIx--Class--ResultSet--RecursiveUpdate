@@ -57,7 +57,7 @@ sub recursive_update {
     my %pre_updates;
 
     # relations that that should be done after the row is inserted into the database
-    # like has_many and might_have
+    # like has_many, might_have and has_one
     my %post_updates;
     my %other_methods;
     my %columns_by_accessor = _get_columns_by_accessor( $self );
@@ -148,6 +148,7 @@ sub recursive_update {
     return $object;
 }
 
+# returns DBIx::Class::ResultSource::column_info as a hash indexed by column accessor || name
 sub _get_columns_by_accessor {
     my $self   = shift;
     my $source = $self->result_source;
@@ -184,11 +185,13 @@ sub _update_relation {
         }
         my @related_pks = $related_result->result_source->primary_columns;
         if( defined $if_not_submitted && $if_not_submitted eq 'delete' ){
+            # only handles related result classes with single primary keys
             if ( 1 == scalar @related_pks ){
                 $object->$name->search( { $related_pks[0] => { -not_in => \@updated_ids } } )->delete;
             }
         }
         elsif( defined $if_not_submitted && $if_not_submitted eq 'set_to_null' ){
+            # only handles related result classes with single primary keys
             if ( 1 == scalar @related_pks ){
                 my @fk = keys %$resolved;
                 $object->$name->search( { $related_pks[0] => { -not_in => \@updated_ids } } )->update( { $fk[0] => undef } );
@@ -283,6 +286,10 @@ sub _get_pk_for_related {
     return $result_source->primary_columns;
 }
 
+# This function determines wheter a relationship should be done before or
+# after the row is inserted into the database
+# relationships before: belongs_to
+# relationships after: has_many, might_have and has_one
 sub _master_relation_cond {
     my ( $source, $cond, @foreign_ids ) = @_;
     my $foreign_ids_re = join '|', @foreign_ids;
@@ -353,6 +360,7 @@ Then:
 
   
 =head1 DESCRIPTION
+
 This is still experimental. I've added a functional interface so that it can be used 
 in Form Processors and not require modification of the model.
 
@@ -400,7 +408,110 @@ in DBIx::Class::Schema.
 
 =head1 DESIGN CHOICES
 
-=head2 Treatment of many to many pseudo relations
+Columns and relationships which are excluded from the updates hashref aren't
+touched at all.
+
+=head2 Treatment of belongs_to relations
+
+In case the relationship is included but undefined in the updates hashref,
+all columns forming the relationship will be set to null.
+If not all of them are nullable, DBIx::Class will throw an error.
+
+Updating the relationship:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id    => 1,
+        owner => $user->id,
+    });
+
+Clearing the relationship (only works if cols are nullable!):
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id    => 1,
+        owner => undef,
+    });
+
+=head2 Treatment of might_have relationships
+
+In case the relationship is included but undefined in the updates hashref,
+all columns forming the relationship will be set to null.
+
+Updating the relationship:
+
+    my $user = $user_rs->recursive_update( {
+        id => 1,
+        address => {
+            street => "101 Main Street",
+            city   => "Podunk",
+            state  => "New York",
+        }
+    });
+
+Clearing the relationship:
+
+    my $user = $user_rs->recursive_update( {
+        id => 1,
+        address => undef,
+    });
+
+=head2 Treatment of has_many relations
+
+In case the relationship is included but undefined or an empty array, the
+related rows will be deleted or their foreign key column set to null depending
+on if_not_submitted parameter (set_to_null or delete).
+It defaults to undefined which skips both.
+
+Updating the relationship:
+
+    Passing ids:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => [1, 2],
+    });
+
+    Passing hashrefs:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => [
+            {
+                id   => 1,
+                file => 'file0'
+            },
+            {
+                id   => 2,
+                file => 'file1',
+            },
+        ],
+    });
+
+    Passing objects:
+
+    TODO
+
+    You can even mix them:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => [ '2', { id => '3' } ],
+    });
+
+Clearing the relationship:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => undef,
+    });
+
+    This is the same as passing an empty array:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => [],
+    });
+
+=head2 Treatment of many-to-many pseudo relations
 
 The function gets the information about m2m relations from DBIx::Class::IntrospectableM2M.
 If it is not loaded in the ResultSource classes - then the code relies on the fact that:
@@ -446,14 +557,10 @@ DBIx::Class::RecursiveUpdate requires no configuration files or environment vari
 
 =head1 INCOMPATIBILITIES
 
-=for author to fill in:
-
 None reported.
 
 
 =head1 BUGS AND LIMITATIONS
-
-=for author to fill in:
 
 No bugs have been reported.
 
