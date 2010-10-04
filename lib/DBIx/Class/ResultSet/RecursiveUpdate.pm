@@ -194,11 +194,6 @@ sub _update_relation {
             $self->result_source->_resolve_condition( $info->{cond}, $name,
             $object );
     }
-    else {
-        $resolved =
-            $self->result_source->resolve_condition( $info->{cond}, $name,
-            $object );
-    }
 
     # warn "$name resolved: " . Dumper( $resolved ); use Data::Dumper;
     $resolved = {}
