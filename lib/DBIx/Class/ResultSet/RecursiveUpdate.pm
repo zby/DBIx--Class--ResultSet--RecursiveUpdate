@@ -307,7 +307,7 @@ sub _update_relation {
                 );
             }
         }
-        elsif ( !ref $updates ) {
+        else {
             $sub_object = $related_resultset->find($updates)
                 unless (
                 !$updates
