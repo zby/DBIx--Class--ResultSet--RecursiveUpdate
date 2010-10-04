@@ -114,7 +114,7 @@ sub recursive_update {
     }
     for my $name ( keys %pre_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates, $object, $info,
+        _update_relation( $self, $name, $updates->{$name}, $object, $info,
             $if_not_submitted );
     }
 
@@ -162,7 +162,7 @@ sub recursive_update {
     }
     for my $name ( keys %post_updates ) {
         my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates, $object, $info,
+        _update_relation( $self, $name, $updates->{$name}, $object, $info,
             $if_not_submitted );
     }
     return $object;
@@ -181,6 +181,8 @@ sub _get_columns_by_accessor {
     return %columns;
 }
 
+# Arguments: $name, $updates, $object, $info, $if_not_submitted
+
 sub _update_relation {
     my ( $self, $name, $updates, $object, $info, $if_not_submitted ) = @_;
     my $related_result =
@@ -197,14 +199,16 @@ sub _update_relation {
             $object );
     }
 
-    # warn 'resolved: ' . Dumper( $resolved ); use Data::Dumper;
+    # warn "$name resolved: " . Dumper( $resolved ); use Data::Dumper;
     $resolved = {}
         if defined $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             == $resolved;
-    if ( ref $updates->{$name} eq 'ARRAY' ) {
+
+    # an arrayref is only valid for has_many rels
+    if ( ref $updates eq 'ARRAY' ) {
         my @updated_ids;
-        for my $sub_updates ( @{ $updates->{$name} } ) {
+        for my $sub_updates ( @{ $updates } ) {
             my $sub_object = recursive_update(
                 resultset => $related_result,
                 updates   => $sub_updates,
@@ -236,9 +240,8 @@ sub _update_relation {
         }
     }
     else {
-        my $sub_updates = $updates->{$name};
         my $sub_object;
-        if ( ref $sub_updates ) {
+        if ( ref $updates ) {
 
             # for might_have relationship
             if ( $info->{attrs}{accessor} eq 'single'
@@ -246,22 +249,22 @@ sub _update_relation {
             {
                 $sub_object = recursive_update(
                     resultset => $related_result,
-                    updates   => $sub_updates,
+                    updates   => $updates,
                     object    => $object->$name
                 );
             }
             else {
                 $sub_object = recursive_update(
                     resultset => $related_result,
-                    updates   => $sub_updates,
+                    updates   => $updates,
                     resolved  => $resolved
                 );
             }
         }
-        elsif ( !ref $sub_updates ) {
-            $sub_object = $related_result->find($sub_updates)
+        elsif ( !ref $updates ) {
+            $sub_object = $related_result->find($updates)
                 unless (
-                !$sub_updates
+                !$updates
                 && ( exists $info->{attrs}{join_type}
                     && $info->{attrs}{join_type} eq 'LEFT' )
                 );
@@ -269,7 +272,7 @@ sub _update_relation {
         $object->set_from_related( $name, $sub_object )
             unless (
                !$sub_object
-            && !$sub_updates
+            && !$updates
             && ( exists $info->{attrs}{join_type}
                 && $info->{attrs}{join_type} eq 'LEFT' )
             );
@@ -578,15 +581,16 @@ Clearing the relationship:
 =head2 Treatment of many-to-many pseudo relations
 
 The function gets the information about m2m relations from DBIx::Class::IntrospectableM2M.
-If it is not loaded in the ResultSource classes - then the code relies on the fact that:
+If it isn't loaded in the ResultSource classes the code relies on the fact that:
+
     if($object->can($name) and
              !$object->result_source->has_relationship($name) and
              $object->can( 'set_' . $name )
          )
 
-then $name must be a many to many pseudo relation.  And that in a
-similarly ugly was I find out what is the ResultSource of objects from
-that many to many pseudo relation.
+Then $name must be a many to many pseudo relation.
+And that in a similarly ugly was I find out what is the ResultSource of
+objects from that many to many pseudo relation.
 
 
 =head1 INTERFACE 
