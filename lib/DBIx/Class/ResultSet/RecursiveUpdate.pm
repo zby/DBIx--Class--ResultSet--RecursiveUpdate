@@ -113,8 +113,7 @@ sub recursive_update {
         $object->$name( $updates->{$name} ) if $object->can($name);
     }
     for my $name ( keys %pre_updates ) {
-        my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates->{$name}, $object, $info,
+        _update_relation( $self, $name, $updates->{$name}, $object,
             $if_not_submitted );
     }
 
@@ -161,8 +160,7 @@ sub recursive_update {
         }
     }
     for my $name ( keys %post_updates ) {
-        my $info = $object->result_source->relationship_info($name);
-        _update_relation( $self, $name, $updates->{$name}, $object, $info,
+        _update_relation( $self, $name, $updates->{$name}, $object,
             $if_not_submitted );
     }
     return $object;
@@ -181,10 +179,12 @@ sub _get_columns_by_accessor {
     return %columns;
 }
 
-# Arguments: $name, $updates, $object, $info, $if_not_submitted
+# Arguments: $name, $updates, $object, $if_not_submitted
 
 sub _update_relation {
-    my ( $self, $name, $updates, $object, $info, $if_not_submitted ) = @_;
+    my ( $self, $name, $updates, $object, $if_not_submitted ) = @_;
+    my $info = $object->result_source->relationship_info($name);
+
     # get a related resultset without a condition
     my $related_resultset =
         $self->related_resultset($name)->result_source->resultset;
