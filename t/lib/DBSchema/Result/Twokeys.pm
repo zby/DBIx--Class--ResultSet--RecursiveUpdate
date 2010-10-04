@@ -15,7 +15,7 @@ __PACKAGE__->add_columns(
 );
 __PACKAGE__->set_primary_key("dvd_name", "key2");
 
-__PACKAGE__->add_relationship('like_belongs_to', 'DBSchema::Result::Dvd', { 'foreign.name' => 'self.dvd_name' }, );
+__PACKAGE__->add_relationship('like_belongs_to', 'DBSchema::Result::Dvd', { 'foreign.name' => 'self.dvd_name' }, { accessor => 'single' });
 
 
 1;

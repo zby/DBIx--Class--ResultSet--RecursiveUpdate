@@ -54,9 +54,10 @@ __PACKAGE__->might_have(
     liner_notes => 'DBSchema::Result::LinerNotes', undef,
     { proxy => [ qw/notes/ ] },
 );
-__PACKAGE__->add_relationship('like_has_many', 'DBSchema::Result::Twokeys', { 'foreign.dvd_name' => 'self.name' }, { accessor_name => 'like_has_many' } );
+__PACKAGE__->add_relationship('like_has_many', 'DBSchema::Result::Twokeys', { 'foreign.dvd_name' => 'self.name' }, { accessor => 'multi', accessor_name => 'like_has_many' } );
 __PACKAGE__->add_relationship('like_has_many2', 'DBSchema::Result::Twokeys_belongsto', 
     { 'foreign.key1' => 'self.twokeysfk' }, 
+    { accessor => 'multi' },
 ); 
 
 1;
