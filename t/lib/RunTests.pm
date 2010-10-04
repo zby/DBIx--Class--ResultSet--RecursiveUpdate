@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests{
     my $schema = shift;
 
-    plan tests => 41;
+    plan tests => 42;
     
     my $dvd_rs = $schema->resultset( 'Dvd' );
     my $user_rs = $schema->resultset( 'User' );
@@ -19,6 +19,16 @@ sub run_tests{
     my $initial_user_count = $user_rs->count;
     my $initial_dvd_count = $dvd_rs->count;
     my $updates;
+
+    # try to create with a not existing rel
+    $updates = {
+            name => 'Test name for nonexisting rel',
+            username => 'nonexisting_rel',
+            password => 'whatever',
+            nonexisting => { foo => 'bar' },
+    };
+    eval { my $nonexisting_user = $user_rs->recursive_update( $updates ); };
+    like ($@, qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/, 'nonexisting column, accessor, relationship fails');
 
     # creating new record linked to some old record
     $updates = {
@@ -38,7 +48,7 @@ sub run_tests{
 
     # creating new records
     $updates = {
-            aaaa => undef,
+            #aaaa => undef,
             tags => [ '2', { id => '3' } ], 
             name => 'Test name',
             owner => $owner,
@@ -82,7 +92,7 @@ sub run_tests{
     my $num_of_users = $user_rs->count;
     $updates = {
             id => $dvd->dvd_id, # id instead of dvd_id
-            aaaa => undef,
+            ####aaaa => undef,
             name => undef,
             tags => [ ], 
             'owner' => $another_owner->id,
@@ -145,6 +155,7 @@ sub run_tests{
     is( scalar @tags, 2, 'Tags in has_many related record saved' );
     ok( $owned_dvds{'temp name 2'}, 'Second name in a has_many related record saved' );
 
+    # update has_many where foreign cols aren't nullable
     $updates = {
         id => $user->id,
         address => {
@@ -152,13 +163,12 @@ sub run_tests{
             city => "Podunk",
             state => "New York"
         },
-        owned_dvds =>[
+        owned_dvds => [
             {
                 id => 1,
             },
         ]
     };
-    $user = $user_rs->recursive_update( $updates );
     $user = $user_rs->recursive_update( $updates );
     is( $schema->resultset( 'Address' )->search({ user_id => $user->id  })->count, 1,
             'the right number of addresses' );
@@ -182,10 +192,11 @@ sub run_tests{
     );
     is( $user->borrowed_dvds->count, 1, 'set_to_null' );
 
+    # has_many where foreign cols are nullable
     $dvd_rs->update( { current_borrower => $user->id } );
     $updates = {
         id => $user->id,
-        borrowed_dvds =>[
+        borrowed_dvds => [
         {
             id => $dvd->id
         },

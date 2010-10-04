@@ -77,29 +77,59 @@ sub recursive_update {
     #    warn 'columns: ' . Dumper( \%columns_by_accessor );
     for my $name ( keys %$updates ) {
         my $source = $self->result_source;
-        if ( $columns_by_accessor{$name}
+
+        # columns
+        if ( exists $columns_by_accessor{$name}
             && !( $source->has_relationship($name)
                 && ref( $updates->{$name} ) ) )
         {
+
+            #warn "$name is a column";
             $columns{$name} = $updates->{$name};
             next;
         }
-        if ( !( $source->has_relationship($name) ) ) {
+
+        # relationships
+        if ( $source->has_relationship($name) ) {
+            my $info = $source->relationship_info($name);
+            if (_master_relation_cond(
+                    $source, $info->{cond},
+                    _get_pk_for_related( $self, $name )
+                )
+                )
+            {
+
+                #warn "$name is a pre-update rel";
+                $pre_updates{$name} = $updates->{$name};
+                next;
+            }
+            else {
+
+                #warn "$name is a post-update rel";
+                $post_updates{$name} = $updates->{$name};
+                next;
+            }
+        }
+
+        # many-to-many helper accessors
+        if ( is_m2m( $self, $name ) ) {
+
+            #warn "$name is a many-to-many helper accessor";
             $other_methods{$name} = $updates->{$name};
             next;
         }
-        my $info = $source->relationship_info($name);
-        if (_master_relation_cond(
-                $source, $info->{cond},
-                _get_pk_for_related( $self, $name )
-            )
-            )
-        {
-            $pre_updates{$name} = $updates->{$name};
+
+        # accessors
+        if ( $object->can($name) && not $source->has_relationship($name) ) {
+
+            #warn "$name is an accessor";
+            $other_methods{$name} = $updates->{$name};
+            next;
         }
-        else {
-            $post_updates{$name} = $updates->{$name};
-        }
+
+        # unknown
+        $self->throw_exception(
+            "No such column, relationship, many-to-many helper accessor or generic accessor '$name'");
     }
 
     # warn 'other: ' . Dumper( \%other_methods ); use Data::Dumper;
@@ -110,7 +140,7 @@ sub recursive_update {
         $object->$name( $columns{$name} );
     }
     for my $name ( keys %other_methods ) {
-        $object->$name( $updates->{$name} ) if $object->can($name);
+        $object->$name( $updates->{$name} );
     }
     for my $name ( keys %pre_updates ) {
         _update_relation( $self, $name, $updates->{$name}, $object,
@@ -183,6 +213,12 @@ sub _get_columns_by_accessor {
 
 sub _update_relation {
     my ( $self, $name, $updates, $object, $if_not_submitted ) = @_;
+
+    # this should never happen because we're checking the paramters passed to
+    # recursive_update, but just to be sure...
+    $object->throw_exception("No such relationship '$name' on ")
+        unless $object->has_relationship($name);
+
     my $info = $object->result_source->relationship_info($name);
 
     # get a related resultset without a condition
