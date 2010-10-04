@@ -456,10 +456,24 @@ Clearing the relationship:
 
 =head2 Treatment of has_many relations
 
-In case the relationship is included but undefined or an empty array, the
-related rows will be deleted or their foreign key column set to null depending
-on if_not_submitted parameter (set_to_null or delete).
-It defaults to undefined which skips both.
+If a relationship key is included in the data structure with a value of undef
+or an empty array, all existing related rows will be deleted, or their foreign
+key columns will be set to null.
+
+The exact behaviour depends on the nullability of the foreign key columns and
+the value of the "if_not_submitted" parameter. The parameter defaults to
+undefined which neither nullifies nor deletes.
+
+When the array contains elements they are updated if they exist, created when
+not and deleted if not included.
+
+=head3 All foreign table columns are nullable
+
+In this case recursive_update defaults to nullifying the foreign columns.
+
+=head3 Not all foreign table columns are nullable
+
+In this case recursive_update deletes the foreign rows.
 
 Updating the relationship:
 
