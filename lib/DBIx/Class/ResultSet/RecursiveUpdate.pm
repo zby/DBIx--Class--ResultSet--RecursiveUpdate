@@ -185,7 +185,8 @@ sub _get_columns_by_accessor {
 
 sub _update_relation {
     my ( $self, $name, $updates, $object, $info, $if_not_submitted ) = @_;
-    my $related_result =
+    # get a related resultset without a condition
+    my $related_resultset =
         $self->related_resultset($name)->result_source->resultset;
     my $resolved;
     if ( $self->result_source->can('_resolve_condition') ) {
@@ -208,15 +209,15 @@ sub _update_relation {
     # an arrayref is only valid for has_many rels
     if ( ref $updates eq 'ARRAY' ) {
         my @updated_ids;
-        for my $sub_updates ( @{ $updates } ) {
+        for my $sub_updates ( @{$updates} ) {
             my $sub_object = recursive_update(
-                resultset => $related_result,
+                resultset => $related_resultset,
                 updates   => $sub_updates,
                 resolved  => $resolved
             );
             push @updated_ids, $sub_object->id;
         }
-        my @related_pks = $related_result->result_source->primary_columns;
+        my @related_pks = $related_resultset->result_source->primary_columns;
         if ( defined $if_not_submitted && $if_not_submitted eq 'delete' ) {
 
             # only handles related result classes with single primary keys
@@ -248,21 +249,21 @@ sub _update_relation {
                 && defined $object->$name )
             {
                 $sub_object = recursive_update(
-                    resultset => $related_result,
+                    resultset => $related_resultset,
                     updates   => $updates,
                     object    => $object->$name
                 );
             }
             else {
                 $sub_object = recursive_update(
-                    resultset => $related_result,
+                    resultset => $related_resultset,
                     updates   => $updates,
                     resolved  => $resolved
                 );
             }
         }
         elsif ( !ref $updates ) {
-            $sub_object = $related_result->find($updates)
+            $sub_object = $related_resultset->find($updates)
                 unless (
                 !$updates
                 && ( exists $info->{attrs}{join_type}
