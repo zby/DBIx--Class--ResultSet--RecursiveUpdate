@@ -129,7 +129,8 @@ sub recursive_update {
 
         # unknown
         $self->throw_exception(
-            "No such column, relationship, many-to-many helper accessor or generic accessor '$name'");
+            "No such column, relationship, many-to-many helper accessor or generic accessor '$name'"
+        );
     }
 
     # warn 'other: ' . Dumper( \%other_methods ); use Data::Dumper;
@@ -237,10 +238,21 @@ sub _update_relation {
             && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             == $resolved;
 
-    # an arrayref is only valid for has_many rels
-    if ( ref $updates eq 'ARRAY' ) {
+    my $rel_col_cnt = scalar keys %{ $info->{cond} };
+    use Data::Dumper;
+    warn "RELINFO for $name: " . Dumper($info);
+    warn "REL_COL_CNT: $rel_col_cnt";
+
+    #warn "REV RELINFO for $name: " . Dumper($revrelinfo);
+
+    # the only valid datatype for a has_many rels is an arrayref
+    if ( $info->{attrs}{accessor} eq 'multi') {
+        $self->throw_exception( "data for has_many relationship '$name' must be an arrayref")
+            unless ref $updates eq 'ARRAY';
+
         my @updated_ids;
         for my $sub_updates ( @{$updates} ) {
+            warn "updating $name";
             my $sub_object = recursive_update(
                 resultset => $related_resultset,
                 updates   => $sub_updates,
@@ -271,7 +283,9 @@ sub _update_relation {
             }
         }
     }
-    else {
+    elsif ($info->{attrs}{accessor} eq 'single'
+        || $info->{attrs}{accessor} eq 'filter' )
+    {
         my $sub_object;
         if ( ref $updates ) {
 
@@ -308,6 +322,9 @@ sub _update_relation {
             && ( exists $info->{attrs}{join_type}
                 && $info->{attrs}{join_type} eq 'LEFT' )
             );
+    }
+    else {
+        $self->throw_exception( "recursive_update doesn't now how to handle relationship '$name' with accessor " . $info->{attrs}{accessor});
     }
 }
 
