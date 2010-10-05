@@ -155,8 +155,10 @@ sub recursive_update {
     # don't allow insert to recurse to related objects
     # do the recursion ourselves
     # $object->{_rel_in_storage} = 1;
-    #warn "CHANGED: " . $object->is_changed . " IN STOR: " .  $object->in_storage . "\n";
+    #warn "CHANGED: " . $object->is_changed . "\n":
+    #warn "IN STOR: " .  $object->in_storage . "\n";
     $object->update_or_insert if $object->is_changed;
+    $object->discard_changes;
 
     # updating many_to_many
     for my $name ( keys %$updates ) {
@@ -251,12 +253,32 @@ sub _update_relation {
             && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             == $resolved;
 
-    my $rel_col_cnt = scalar keys %{ $info->{cond} };
-    use Data::Dumper;
-    warn "RELINFO for $name: " . Dumper($info);
-    warn "REL_COL_CNT: $rel_col_cnt";
+    my @rel_cols = keys %{ $info->{cond} };
+    map {s/^foreign\.//} @rel_cols;
 
-    #warn "REV RELINFO for $name: " . Dumper($revrelinfo);
+    #warn "REL_COLS: " . Dumper(@rel_cols); use Data::Dumper;
+    my $rel_col_cnt = scalar @rel_cols;
+
+    # find out if all related columns are nullable
+    my $all_fks_nullable = 1;
+    for my $rel_col (@rel_cols) {
+        $all_fks_nullable = 0
+            unless $related_resultset->result_source->column_info($rel_col)
+                ->{is_nullable};
+    }
+
+    #warn "\tNULLABLE: $all_fks_nullable\n";
+    $if_not_submitted = $all_fks_nullable ? 'nullify' : 'delete'
+        unless defined $if_not_submitted;
+
+    # handle undef
+    #if (not defined $updates && $if_not_submitted eq 'delete') {
+    #    warn "$name " . ref $object;
+    #    $object->related_resultset($name)->delete;
+    #    return;
+    #}
+
+    #warn "RELINFO for $name: " . Dumper($info); use Data::Dumper;
 
     # the only valid datatype for a has_many rels is an arrayref
     if ( $info->{attrs}{accessor} eq 'multi' ) {
@@ -264,41 +286,77 @@ sub _update_relation {
             "data for has_many relationship '$name' must be an arrayref")
             unless ref $updates eq 'ARRAY';
 
-        my @updated_ids;
+        my @updated_objs;
+
+        #warn "\tupdating has_many rel '$name' ($rel_col_cnt columns cols)\n";
         for my $sub_updates ( @{$updates} ) {
             my $sub_object = recursive_update(
                 resultset => $related_resultset,
                 updates   => $sub_updates,
                 resolved  => $resolved
             );
-            push @updated_ids, $sub_object->id;
+
+            push @updated_objs, $sub_object;
         }
+
+        #warn "\tcreated and updated related rows\n";
+
+        my @cond;
         my @related_pks = $related_resultset->result_source->primary_columns;
-        if ( defined $if_not_submitted && $if_not_submitted eq 'delete' ) {
-
-            # only handles related result classes with single primary keys
-            if ( 1 == scalar @related_pks ) {
-                $object->$name->search(
-                    { $related_pks[0] => { -not_in => \@updated_ids } } )
-                    ->delete;
+        for my $obj (@updated_objs) {
+            my %cond_for_obj;
+            for my $col (@related_pks) {
+                $cond_for_obj{$col} = $obj->get_column($col);
             }
+            push @cond, \%cond_for_obj;
         }
-        elsif ( defined $if_not_submitted
-            && $if_not_submitted eq 'set_to_null' )
-        {
+        my %cond = ( -not => [@cond] );
 
-            # only handles related result classes with single primary keys
-            if ( 1 == scalar @related_pks ) {
-                my @fk = keys %$resolved;
-                $object->$name->search(
-                    { $related_pks[0] => { -not_in => \@updated_ids } } )
-                    ->update( { $fk[0] => undef } );
-            }
+        #warn "\tCOND: " . Dumper(\%cond);
+        my $rs_rel_delist = $object->$name->search_rs( \%cond );
+
+        #my $rel_delist_cnt = $rs_rel_delist->count;
+        my @foo = $rs_rel_delist->all;
+        if ( $if_not_submitted eq 'delete' ) {
+
+            #warn "\tdeleting related rows: $rel_delist_cnt\n";
+            $rs_rel_delist->delete;
+
+            # # only handles related result classes with single primary keys
+            # if ( 1 == $rel_col_cnt ) {
+            # $object->$name->search(
+            # {   $rel_cols[0] =>
+            # { -not_in => [ map ( $_->id, @updated_objs ) ] }
+            # }
+            # )->delete;
+            # }
+            # else {
+            # warn "multi-column relationships aren't supported\n";
+            # }
+        }
+        elsif ( $if_not_submitted eq 'set_to_null' ) {
+
+            #warn "\tnullifying related rows: $rel_delist_cnt\n";
+            my %update = map { $_ => undef } @rel_cols;
+            $rs_rel_delist->update( \%update );
+
+            # # only handles related result classes with single primary keys
+            # if ( 1 == $rel_col_cnt ) {
+            # $object->$name->search(
+            # {   $rel_cols[0] =>
+            # { -not_in => [ map ( $_->id, @updated_objs ) ] }
+            # }
+            # )->update( { $rel_cols[0] => undef } );
+            # }
+            # else {
+            # warn "multi-column relationships aren't supported\n";
+            # }
         }
     }
     elsif ($info->{attrs}{accessor} eq 'single'
         || $info->{attrs}{accessor} eq 'filter' )
     {
+
         #warn "\tupdating rel '$name': $if_not_submitted\n";
         my $sub_object;
         if ( ref $updates ) {
