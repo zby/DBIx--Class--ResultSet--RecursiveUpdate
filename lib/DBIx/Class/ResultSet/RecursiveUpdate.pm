@@ -20,6 +20,7 @@ sub recursive_update {
 package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
 use Carp;
 use Scalar::Util qw( blessed );
+use List::MoreUtils qw/ any /;
 
 sub recursive_update {
     my %params = @_;
@@ -91,13 +92,7 @@ sub recursive_update {
 
         # relationships
         if ( $source->has_relationship($name) ) {
-            my $info = $source->relationship_info($name);
-            if (_master_relation_cond(
-                    $source, $info->{cond},
-                    _get_pk_for_related( $self, $name )
-                )
-                )
-            {
+            if ( _master_relation_cond( $self, $name ) ) {
 
                 #warn "$name is a pre-update rel\n";
                 $pre_updates{$name} = $updates->{$name};
@@ -140,14 +135,17 @@ sub recursive_update {
     # first update columns and other accessors
     # so that later related records can be found
     for my $name ( keys %columns ) {
+
         #warn "update col $name\n";
         $object->$name( $columns{$name} );
     }
     for my $name ( keys %other_methods ) {
+
         #warn "update other $name\n";
         $object->$name( $updates->{$name} );
     }
     for my $name ( keys %pre_updates ) {
+
         #warn "pre_update $name\n";
         _update_relation( $self, $name, $pre_updates{$name}, $object,
             $if_not_submitted );
@@ -166,6 +164,7 @@ sub recursive_update {
         my $value = $updates->{$name};
 
         if ( is_m2m( $self, $name ) ) {
+
             #warn "update m2m $name\n";
             my ($pk) = _get_pk_for_related( $self, $name );
             my @rows;
@@ -198,6 +197,7 @@ sub recursive_update {
         }
     }
     for my $name ( keys %post_updates ) {
+
         #warn "post_update $name\n";
         _update_relation( $self, $name, $post_updates{$name}, $object,
             $if_not_submitted );
@@ -219,7 +219,6 @@ sub _get_columns_by_accessor {
 }
 
 # Arguments: $rs, $name, $updates, $row, $if_not_submitted
-
 sub _update_relation {
     my ( $self, $name, $updates, $object, $if_not_submitted ) = @_;
 
@@ -228,7 +227,7 @@ sub _update_relation {
     $object->throw_exception("No such relationship '$name'")
         unless $object->has_relationship($name);
 
-    #warn "_update_relation $name: OBJ: " . ref($object) . " IN STOR: " . $object->in_storage . "\n";
+    #warn "_update_relation $name: OBJ: " . ref($object) . "\n";
 
     my $info = $object->result_source->relationship_info($name);
 
@@ -240,6 +239,10 @@ sub _update_relation {
         $resolved =
             $self->result_source->_resolve_condition( $info->{cond}, $name,
             $object );
+    }
+    else {
+        $self->throw_exception(
+            "result_source must support _resolve_condition");
     }
 
     # warn "$name resolved: " . Dumper( $resolved ); use Data::Dumper;
@@ -408,26 +411,54 @@ sub _get_pk_for_related {
 # relationships after: has_many, might_have and has_one
 # true means before, false after
 sub _master_relation_cond {
-    my ( $source, $cond, @foreign_ids ) = @_;
-    my $foreign_ids_re = join '|', @foreign_ids;
-    if ( ref $cond eq 'HASH' ) {
-        for my $f_key ( keys %{$cond} ) {
+    my ( $self, $name ) = @_;
+
+    my $source = $self->result_source;
+    my $info   = $source->relationship_info($name);
+
+    #warn "INFO: " . Dumper($info) . "\n";
+
+    # has_many rels are always after
+    return 0
+        if $info->{attrs}->{accessor} eq 'multi';
+
+    my @foreign_ids = _get_pk_for_related( $self, $name );
+
+    #warn "IDS: " . join(', ', @foreign_ids) . "\n";
+
+    my $cond = $info->{cond};
+
+    sub _inner {
+        my ( $source, $cond, @foreign_ids ) = @_;
+
+        while ( my ( $f_key, $col ) = each %{$cond} ) {
 
             # might_have is not master
-            my $col = $cond->{$f_key};
-            $col =~ s/self\.//;
+            $col   =~ s/^self\.//;
+            $f_key =~ s/^foreign\.//;
             if ( $source->column_info($col)->{is_auto_increment} ) {
                 return 0;
             }
-            if ( $f_key =~ /^foreign\.$foreign_ids_re/ ) {
+            if ( any { $_ eq $f_key } @foreign_ids ) {
                 return 1;
             }
         }
+        return 0;
     }
+
+    if ( ref $cond eq 'HASH' ) {
+        return _inner( $source, $cond, @foreign_ids );
+    }
+
+    # arrayref of hashrefs
     elsif ( ref $cond eq 'ARRAY' ) {
         for my $new_cond (@$cond) {
-            return _master_relation_cond( $source, $new_cond, @foreign_ids );
+            return _inner( $source, $new_cond, @foreign_ids );
         }
+    }
+    else {
+        $source->throw_exception(
+            "unhandled relation condition " . ref($cond) );
     }
     return;
 }
