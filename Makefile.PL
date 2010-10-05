@@ -16,6 +16,7 @@ requires 'SQL::Translator' => '0.11005';
 requires 'DateTime';
 requires 'DBD::SQLite' => '1.21';
 requires 'Readonly' => '1.03';
+requires 'List::MoreUtils' => '0.22';
 
 # things the tests need
 test_requires 'Test::More'      => '0.88';
