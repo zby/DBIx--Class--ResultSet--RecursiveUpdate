@@ -84,7 +84,7 @@ sub recursive_update {
                 && ref( $updates->{$name} ) ) )
         {
 
-            #warn "$name is a column";
+            #warn "$name is a column\n";
             $columns{$name} = $updates->{$name};
             next;
         }
@@ -99,13 +99,13 @@ sub recursive_update {
                 )
             {
 
-                #warn "$name is a pre-update rel";
+                #warn "$name is a pre-update rel\n";
                 $pre_updates{$name} = $updates->{$name};
                 next;
             }
             else {
 
-                #warn "$name is a post-update rel";
+                #warn "$name is a post-update rel\n";
                 $post_updates{$name} = $updates->{$name};
                 next;
             }
@@ -114,7 +114,7 @@ sub recursive_update {
         # many-to-many helper accessors
         if ( is_m2m( $self, $name ) ) {
 
-            #warn "$name is a many-to-many helper accessor";
+            #warn "$name is a many-to-many helper accessor\n";
             $other_methods{$name} = $updates->{$name};
             next;
         }
@@ -128,6 +128,8 @@ sub recursive_update {
         }
 
         # unknown
+        # TODO: don't throw a warning instead of an exception to give users
+        #       time to adapt to the new API
         $self->throw_exception(
             "No such column, relationship, many-to-many helper accessor or generic accessor '$name'"
         );
@@ -138,13 +140,16 @@ sub recursive_update {
     # first update columns and other accessors
     # so that later related records can be found
     for my $name ( keys %columns ) {
+        #warn "update col $name\n";
         $object->$name( $columns{$name} );
     }
     for my $name ( keys %other_methods ) {
+        #warn "update other $name\n";
         $object->$name( $updates->{$name} );
     }
     for my $name ( keys %pre_updates ) {
-        _update_relation( $self, $name, $updates->{$name}, $object,
+        #warn "pre_update $name\n";
+        _update_relation( $self, $name, $pre_updates{$name}, $object,
             $if_not_submitted );
     }
 
@@ -152,6 +157,7 @@ sub recursive_update {
     # don't allow insert to recurse to related objects
     # do the recursion ourselves
     # $object->{_rel_in_storage} = 1;
+    #warn "CHANGED: " . $object->is_changed . " IN STOR: " .  $object->in_storage . "\n";
     $object->update_or_insert if $object->is_changed;
 
     # updating many_to_many
@@ -160,6 +166,7 @@ sub recursive_update {
         my $value = $updates->{$name};
 
         if ( is_m2m( $self, $name ) ) {
+            #warn "update m2m $name\n";
             my ($pk) = _get_pk_for_related( $self, $name );
             my @rows;
             my $result_source = $object->$name->result_source;
@@ -191,7 +198,8 @@ sub recursive_update {
         }
     }
     for my $name ( keys %post_updates ) {
-        _update_relation( $self, $name, $updates->{$name}, $object,
+        #warn "post_update $name\n";
+        _update_relation( $self, $name, $post_updates{$name}, $object,
             $if_not_submitted );
     }
     return $object;
@@ -210,15 +218,17 @@ sub _get_columns_by_accessor {
     return %columns;
 }
 
-# Arguments: $name, $updates, $object, $if_not_submitted
+# Arguments: $rs, $name, $updates, $row, $if_not_submitted
 
 sub _update_relation {
     my ( $self, $name, $updates, $object, $if_not_submitted ) = @_;
 
     # this should never happen because we're checking the paramters passed to
     # recursive_update, but just to be sure...
-    $object->throw_exception("No such relationship '$name' on ")
+    $object->throw_exception("No such relationship '$name'")
         unless $object->has_relationship($name);
+
+    #warn "_update_relation $name: OBJ: " . ref($object) . " IN STOR: " . $object->in_storage . "\n";
 
     my $info = $object->result_source->relationship_info($name);
 
@@ -246,13 +256,13 @@ sub _update_relation {
     #warn "REV RELINFO for $name: " . Dumper($revrelinfo);
 
     # the only valid datatype for a has_many rels is an arrayref
-    if ( $info->{attrs}{accessor} eq 'multi') {
-        $self->throw_exception( "data for has_many relationship '$name' must be an arrayref")
+    if ( $info->{attrs}{accessor} eq 'multi' ) {
+        $self->throw_exception(
+            "data for has_many relationship '$name' must be an arrayref")
             unless ref $updates eq 'ARRAY';
 
         my @updated_ids;
         for my $sub_updates ( @{$updates} ) {
-            warn "updating $name";
             my $sub_object = recursive_update(
                 resultset => $related_resultset,
                 updates   => $sub_updates,
@@ -286,6 +296,7 @@ sub _update_relation {
     elsif ($info->{attrs}{accessor} eq 'single'
         || $info->{attrs}{accessor} eq 'filter' )
     {
+        #warn "\tupdating rel '$name': $if_not_submitted\n";
         my $sub_object;
         if ( ref $updates ) {
 
@@ -324,7 +335,9 @@ sub _update_relation {
             );
     }
     else {
-        $self->throw_exception( "recursive_update doesn't now how to handle relationship '$name' with accessor " . $info->{attrs}{accessor});
+        $self->throw_exception(
+            "recursive_update doesn't now how to handle relationship '$name' with accessor "
+                . $info->{attrs}{accessor} );
     }
 }
 
@@ -393,6 +406,7 @@ sub _get_pk_for_related {
 # after the row is inserted into the database
 # relationships before: belongs_to
 # relationships after: has_many, might_have and has_one
+# true means before, false after
 sub _master_relation_cond {
     my ( $source, $cond, @foreign_ids ) = @_;
     my $foreign_ids_re = join '|', @foreign_ids;
