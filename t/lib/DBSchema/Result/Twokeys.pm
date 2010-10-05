@@ -19,4 +19,3 @@ __PACKAGE__->add_relationship('like_belongs_to', 'DBSchema::Result::Dvd', { 'for
 
 
 1;
-

@@ -21,4 +21,3 @@ __PACKAGE__->belongs_to('onekey', 'DBSchema::Result::Onekey', { 'foreign.id' => 
 
 
 1;
-

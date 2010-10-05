@@ -45,8 +45,8 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('dvd_id');
-__PACKAGE__->belongs_to('owner', 'DBSchema::Result::User', { id => 'owner' });
-__PACKAGE__->belongs_to('current_borrower', 'DBSchema::Result::User', { id => 'current_borrower' });
+__PACKAGE__->belongs_to('owner', 'DBSchema::Result::User', 'owner');
+__PACKAGE__->belongs_to('current_borrower', 'DBSchema::Result::User', 'current_borrower');
 __PACKAGE__->has_many('dvdtags', 'Dvdtag', { 'foreign.dvd' => 'self.dvd_id' });
 __PACKAGE__->has_many('viewings', 'DBSchema::Result::Viewing', { 'foreign.dvd_id' => 'self.dvd_id' });
 __PACKAGE__->many_to_many('tags', 'dvdtags' => 'tag');
