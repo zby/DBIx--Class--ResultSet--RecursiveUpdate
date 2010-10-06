@@ -1,1 +1,8 @@
 /t/var/*
+# perl Makefile.PL
+/META.yml
+/Makefile
+/inc/
+# make
+/blib/
+/pm_to_blib
