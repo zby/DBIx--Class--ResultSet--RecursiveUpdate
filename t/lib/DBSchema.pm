@@ -20,7 +20,7 @@ sub tables_exist {
 sub get_test_schema {
     my ( $dsn, $user, $pass ) = @_;
     $dsn ||= 'dbi:SQLite:dbname=t/var/dvdzbr.db';
-    warn "testing $dsn";
+    warn "testing $dsn\n";
     my $schema = __PACKAGE__->connect( $dsn, $user, $pass, {} );
     my $deploy_attrs;
     $deploy_attrs->{add_drop_table} = 1 if tables_exist( $dsn, $user, $pass );

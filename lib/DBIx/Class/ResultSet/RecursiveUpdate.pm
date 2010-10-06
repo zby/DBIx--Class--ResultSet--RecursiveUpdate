@@ -267,21 +267,19 @@ sub _update_relation {
                 ->{is_nullable};
     }
 
-    #warn "\tNULLABLE: $all_fks_nullable\n";
     $if_not_submitted = $all_fks_nullable ? 'nullify' : 'delete'
         unless defined $if_not_submitted;
 
-    # handle undef
-    #if (not defined $updates && $if_not_submitted eq 'delete') {
-    #    warn "$name " . ref $object;
-    #    $object->related_resultset($name)->delete;
-    #    return;
-    #}
+    #warn "\tNULLABLE: $all_fks_nullable ACTION: $if_not_submitted\n";
 
     #warn "RELINFO for $name: " . Dumper($info); use Data::Dumper;
 
     # the only valid datatype for a has_many rels is an arrayref
     if ( $info->{attrs}{accessor} eq 'multi' ) {
+
+        # handle undef like empty arrayref
+        $updates = []
+            unless defined $updates;
         $self->throw_exception(
             "data for has_many relationship '$name' must be an arrayref")
             unless ref $updates eq 'ARRAY';
@@ -314,6 +312,7 @@ sub _update_relation {
                 }
             );
         }
+
         # foreign table has multiple pk columns
         else {
             for my $obj (@updated_objs) {
@@ -323,7 +322,7 @@ sub _update_relation {
                 }
                 push @cond, \%cond_for_obj;
             }
-            $rs_rel_delist = $rs_rel_delist->search_rs({ -not => [@cond] });
+            $rs_rel_delist = $rs_rel_delist->search_rs( { -not => [@cond] } );
         }
 
         #warn "\tCOND: " . Dumper(\%cond);
@@ -332,36 +331,12 @@ sub _update_relation {
 
             #warn "\tdeleting related rows: $rel_delist_cnt\n";
             $rs_rel_delist->delete;
-
-            # # only handles related result classes with single primary keys
-            # if ( 1 == $rel_col_cnt ) {
-            # $object->$name->search(
-            # {   $rel_cols[0] =>
-            # { -not_in => [ map ( $_->id, @updated_objs ) ] }
-            # }
-            # )->delete;
-            # }
-            # else {
-            # warn "multi-column relationships aren't supported\n";
-            # }
         }
         elsif ( $if_not_submitted eq 'set_to_null' ) {
 
             #warn "\tnullifying related rows: $rel_delist_cnt\n";
             my %update = map { $_ => undef } @rel_cols;
             $rs_rel_delist->update( \%update );
-
-            # # only handles related result classes with single primary keys
-            # if ( 1 == $rel_col_cnt ) {
-            # $object->$name->search(
-            # {   $rel_cols[0] =>
-            # { -not_in => [ map ( $_->id, @updated_objs ) ] }
-            # }
-            # )->update( { $rel_cols[0] => undef } );
-            # }
-            # else {
-            # warn "multi-column relationships aren't supported\n";
-            # }
         }
     }
     elsif ($info->{attrs}{accessor} eq 'single'

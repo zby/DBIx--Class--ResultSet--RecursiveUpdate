@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 42;
+    plan tests => 45;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -100,8 +100,8 @@ sub run_tests {
     # changing existing records
     my $num_of_users = $user_rs->count;
     $updates = {
-        id => $dvd->dvd_id,    # id instead of dvd_id
-        ####aaaa => undef,
+        id               => $dvd->dvd_id,         # id instead of dvd_id
+                                                  #aaaa => undef,
         name             => undef,
         tags             => [],
         'owner'          => $another_owner->id,
@@ -194,14 +194,6 @@ sub run_tests {
     $dvd = $dvd_rs->find(1);
     is( $dvd->get_column('owner'), $user->id, 'foreign key set' );
 
-    # # delete has_many where foreign cols aren't nullable
-    # $updates = {
-    # id => $user->id,
-    # owned_dvds => undef,
-    # };
-    # $user = $user_rs->recursive_update( $updates );
-    # ok ( !$dvd_rs->find( 1 ), 'owned dvd deleted');
-
     $dvd_rs->update( { current_borrower => $user->id } );
     ok( $user->borrowed_dvds->count > 1, 'Precond' );
     $updates = {
@@ -257,7 +249,17 @@ sub run_tests {
     };
     ok( my $new_user = $user_rs->recursive_update($new_person) );
 
-    #print STDERR Dumper $new_user;
+    # delete has_many where foreign cols aren't nullable
+    my $rs_user_dvd = $user->owned_dvds;
+    my @user_dvd_ids = map { $_->id } $rs_user_dvd->all;
+    is( $rs_user_dvd->count, 1, 'user owns 1 dvd');
+    $updates = {
+        id         => $user->id,
+        owned_dvds => undef,
+    };
+    $user = $user_rs->recursive_update($updates);
+    is( $user->owned_dvds->count, 0, 'user owns no dvds');
+    is( $dvd_rs->search({ dvd_id => {-in => \@user_dvd_ids }})->count, 0, 'owned dvds deleted' );
 
 #    $updates = {
 #            name => 'Test name 1',
