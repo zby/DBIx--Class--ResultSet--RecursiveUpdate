@@ -299,7 +299,6 @@ sub _update_relation {
 
         #warn "\tcreated and updated related rows\n";
 
-        my @cond;
         my @related_pks = $related_resultset->result_source->primary_columns;
 
         my $rs_rel_delist = $object->$name;
@@ -315,6 +314,7 @@ sub _update_relation {
 
         # foreign table has multiple pk columns
         else {
+            my @cond;
             for my $obj (@updated_objs) {
                 my %cond_for_obj;
                 for my $col (@related_pks) {
@@ -322,7 +322,10 @@ sub _update_relation {
                 }
                 push @cond, \%cond_for_obj;
             }
-            $rs_rel_delist = $rs_rel_delist->search_rs( { -not => [@cond] } );
+            # only limit resultset if there are related rows left
+            if (scalar @cond) {
+                $rs_rel_delist = $rs_rel_delist->search_rs( { -not => [@cond] } );
+            }
         }
 
         #warn "\tCOND: " . Dumper(\%cond);
