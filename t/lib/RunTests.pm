@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 45;
+    plan tests => 46;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -95,6 +95,10 @@ sub run_tests {
             ->find( { key1 => $onekey->id, key2 => 1 } ),
         'Twokeys_belongsto created'
     );
+    TODO: {
+        local $TODO = 'value of fk from a multi relationship';
+        is( $dvd->twokeysfk, $onekey->id, 'twokeysfk in Dvd' );
+    };
     is( $dvd->name, 'Test name', 'Dvd name set' );
 
     # changing existing records
