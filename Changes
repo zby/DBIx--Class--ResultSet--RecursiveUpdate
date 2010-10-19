@@ -1,20 +1,24 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
+{{ $NEXT }}
+
+0.20      2010-10-19 09:25:33 Europe/Vienna
+    - Support has_many relationships with multi-column primary keys
+
 0.013  Thu Apr 08 15:37:13 UTC  2010
-       Allow might_have relationships to be empty
+    - Allow might_have relationships to be empty
 
 0.012  Thu Sep 10 19:44:25 CEST 2009 
-       updating records linked to by many to many
+    - updating records linked to by many to many
 
 0.009  Sat Jun 20 16:37:57 CEST 2009
-       if_not_submitted flag (experimental)
+    - if_not_submitted flag (experimental)
 
 0.006  Fri May 15 11:03:48 CEST 2009
-       Some adjustments for HTML::FormHandler
+    - Some adjustments for HTML::FormHandler
 
 0.004  Sun Apr 19 11:15:57 CEST 2009
-       Added functional interface - for easy use in Form Processors
+    - Added functional interface - for easy use in Form Processors
 
 0.001  Wed Jun 18 13:09:28 2008
-       Initial release.
-
+    - Initial release.
