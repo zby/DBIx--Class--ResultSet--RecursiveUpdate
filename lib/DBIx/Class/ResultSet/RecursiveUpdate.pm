@@ -256,7 +256,7 @@ sub _update_relation {
     map {s/^foreign\.//} @rel_cols;
 
     #warn "REL_COLS: " . Dumper(@rel_cols); use Data::Dumper;
-    my $rel_col_cnt = scalar @rel_cols;
+    #my $rel_col_cnt = scalar @rel_cols;
 
     # find out if all related columns are nullable
     my $all_fks_nullable = 1;
