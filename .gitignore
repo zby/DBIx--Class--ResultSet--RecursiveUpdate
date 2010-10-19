@@ -1,4 +1,3 @@
-/t/var/*
 # perl Makefile.PL
 /META.yml
 /Makefile
