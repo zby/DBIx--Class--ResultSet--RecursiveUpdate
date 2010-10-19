@@ -512,46 +512,40 @@ sub _master_relation_cond {
 1;    # Magic true value required at end of module
 __END__
 
-=head1 NAME
-
-DBIx::Class::ResultSet::RecursiveUpdate - like update_or_create - but recursive
-
 =head1 SYNOPSIS
 
-The functional interface:
+    # The functional interface:
 
+    my $schema = MyDB::Schema->connect();
     my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update({ 
-        resultset => $schema->resultset( 'Dvd' ),
+        resultset => $schema->resultset('User'),
         updates => {
-            id => 1, 
-            owned_dvds => [ 
-                { 
-                  title => 'One Flew Over the Cuckoo's Nest' 
-                } 
-            ] 
+            id => 1,
+            owned_dvds => [
+                {
+                    title => "One Flew Over the Cuckoo's Nest"
+                }
+            ]
         }
     });
 
 
-As ResultSet subclass:
+    # As ResultSet subclass:
 
     __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
 
-in the Schema file (see t/lib/DBSchema.pm).  Or appriopriate 'use base' in the ResultSet classes. 
+    # in the Schema file (see t/lib/DBSchema.pm).  Or appriopriate 'use base' in the ResultSet classes. 
 
-Then:
+    my $user = $schema->resultset('User')->recursive_update({
+        id => 1,
+        owned_dvds => [
+            {
+                title => "One Flew Over the Cuckoo's Nest"
+            }
+        ]
+    });
 
-    my $user = $user_rs->recursive_update( { 
-        id => 1, 
-        owned_dvds => [ 
-        { 
-          title => 'One Flew Over the Cuckoo's Nest' 
-        } 
-        ] 
-      }
-    );
 
-  
 =head1 DESCRIPTION
 
 This is still experimental. I've added a functional interface so that it can be used 
