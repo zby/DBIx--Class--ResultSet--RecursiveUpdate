@@ -2,17 +2,34 @@ use strict;
 use warnings;
 
 package DBIx::Class::ResultSet::RecursiveUpdate;
+
 # ABSTRACT: like update_or_create - but recursive
 
 use base qw(DBIx::Class::ResultSet);
 
 sub recursive_update {
-    my ( $self, $updates, $fixed_fields ) = @_;
+    my ( $self, $updates, $attrs ) = @_;
+
+    my $fixed_fields;
+    my $unknown_params_ok;
+
+    # 0.21+ api
+    if ( defined $attrs && ref $attrs eq 'HASH' ) {
+        $fixed_fields      = $attrs->{fixed_fields};
+        $unknown_params_ok = $attrs->{unknown_params_ok};
+    }
+
+    # pre 0.21 api
+    elsif ( defined $attrs && ref $attrs eq 'ARRAY' ) {
+        $fixed_fields = $attrs;
+    }
+
     return
         DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
-        resultset    => $self,
-        updates      => $updates,
-        fixed_fields => $fixed_fields
+        resultset         => $self,
+        updates           => $updates,
+        fixed_fields      => $fixed_fields,
+        unknown_params_ok => $unknown_params_ok,
         );
 }
 
@@ -24,22 +41,25 @@ use List::MoreUtils qw/ any /;
 sub recursive_update {
     my %params = @_;
     my ( $self, $updates, $fixed_fields, $object, $resolved,
-        $if_not_submitted )
+        $if_not_submitted, $unknown_params_ok )
         = @params{
-        qw/resultset updates fixed_fields object resolved if_not_submitted/};
+        qw/resultset updates fixed_fields object resolved if_not_submitted unknown_params_ok/
+        };
     $resolved ||= {};
 
     # warn 'entering: ' . $self->result_source->from();
     carp 'fixed fields needs to be an array ref'
-        if $fixed_fields && ref($fixed_fields) ne 'ARRAY';
-    my %fixed_fields;
-    %fixed_fields = map { $_ => 1 } @$fixed_fields if $fixed_fields;
+        if defined $fixed_fields && ref $fixed_fields ne 'ARRAY';
+
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
     if ( $updates->{id} ) {
         $object = $self->find( $updates->{id}, { key => 'primary' } );
     }
+
+    my %fixed_fields = map { $_ => 1 } @$fixed_fields
+        if $fixed_fields;
     my @missing =
         grep { !exists $updates->{$_} && !exists $fixed_fields{$_} }
         $self->result_source->primary_columns;
@@ -122,11 +142,16 @@ sub recursive_update {
         }
 
         # unknown
-        # TODO: don't throw a warning instead of an exception to give users
-        #       time to adapt to the new API
-        $self->throw_exception(
+
+        # don't throw a warning instead of an exception to give users
+        # time to adapt to the new API
+        warn(
             "No such column, relationship, many-to-many helper accessor or generic accessor '$name'"
-        );
+        ) unless $unknown_params_ok;
+
+#$self->throw_exception(
+#    "No such column, relationship, many-to-many helper accessor or generic accessor '$name'"
+#);
     }
 
     # warn 'other: ' . Dumper( \%other_methods ); use Data::Dumper;
@@ -528,8 +553,9 @@ __END__
                     title => "One Flew Over the Cuckoo's Nest"
                 }
             ]
-        }
-    });
+        },
+        unknown_params_ok => 1,
+    );
 
 
     # As ResultSet subclass:
@@ -577,16 +603,18 @@ like in the case of:
     
     my $restricted_rs = $user_rs->search( { id => 1 } );
 
-then you need to inform recursive_update about additional predicate with a second argument:
+then you need to inform recursive_update about the additional predicate with the fixed_fields attribute:
 
-    my $user = $restricted_rs->recursive_update( { 
-        owned_dvds => [ 
-        { 
-          title => 'One Flew Over the Cuckoo's Nest' 
-        } 
-        ] 
-      },
-      [ 'id' ]
+    my $user = $restricted_rs->recursive_update( {
+            owned_dvds => [
+            {
+                title => 'One Flew Over the Cuckoo's Nest'
+            }
+            ]
+        },
+        {
+            fixed_fields => [ 'id' ],
+        }
     );
 
 For a many_to_many (pseudo) relation you can supply a list of primary keys
