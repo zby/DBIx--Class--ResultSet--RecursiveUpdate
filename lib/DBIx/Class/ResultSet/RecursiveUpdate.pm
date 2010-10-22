@@ -321,9 +321,11 @@ sub _update_relation {
                 }
                 push @cond, \%cond_for_obj;
             }
+
             # only limit resultset if there are related rows left
-            if (scalar @cond) {
-                $rs_rel_delist = $rs_rel_delist->search_rs( { -not => [@cond] } );
+            if ( scalar @cond ) {
+                $rs_rel_delist =
+                    $rs_rel_delist->search_rs( { -not => [@cond] } );
             }
         }
 
@@ -517,7 +519,7 @@ __END__
     # The functional interface:
 
     my $schema = MyDB::Schema->connect();
-    my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update({ 
+    my $new_item = DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
         resultset => $schema->resultset('User'),
         updates => {
             id => 1,
@@ -534,7 +536,7 @@ __END__
 
     __PACKAGE__->load_namespaces( default_resultset_class => '+DBIx::Class::ResultSet::RecursiveUpdate' );
 
-    # in the Schema file (see t/lib/DBSchema.pm).  Or appriopriate 'use base' in the ResultSet classes. 
+    # in the Schema file (see t/lib/DBSchema.pm).  Or appropriate 'use base' in the ResultSet classes.
 
     my $user = $schema->resultset('User')->recursive_update({
         id => 1,
@@ -543,24 +545,29 @@ __END__
                 title => "One Flew Over the Cuckoo's Nest"
             }
         ]
+    }, {
+        unknown_params_ok => 1,
     });
 
 
 =head1 DESCRIPTION
 
-This is still experimental. I've added a functional interface so that it can be used 
-in Form Processors and not require modification of the model.
+This is still experimental.
 
-You can feed the ->create method with a recursive datastructure and have the related records
-created.  Unfortunately you cannot do a similar thing with update_or_create - this module
-tries to fill that void. 
+You can feed the ->create method of DBIx::Class with a recursive datastructure
+and have the related records created. Unfortunately you cannot do a similar
+thing with update_or_create.
+This module tries to fill that void until L<DBIx::Class> has an api itself.
 
-It is a base class for ResultSets providing just one method: recursive_update
+The functional interface can be used without modifications of the model,
+for example by form processors like L<HTML::FormHandler::Model::DBIC>.
+
+It is a base class for L<DBIx::Class::ResultSet>s providing the method recursive_update
 which works just like update_or_create but can recursively update or create
 data objects composed of multiple rows. All rows need to be identified by primary keys
 - so you need to provide them in the update structure (unless they can be deduced from 
 the parent row - for example when you have a belongs_to relationship).  
-If not all colums comprising the primary key are specified - then a new row will be created,
+If not all columns comprising the primary key are specified a new row will be created,
 with the expectation that the missing columns will be filled by it (as in the case of auto_increment 
 primary keys).  
 
@@ -582,16 +589,13 @@ then you need to inform recursive_update about additional predicate with a secon
       [ 'id' ]
     );
 
-This will work with a new DBIC release.
-
 For a many_to_many (pseudo) relation you can supply a list of primary keys
-from the other table - and it will link the record at hand to those and
+from the other table and it will link the record at hand to those and
 only those records identified by them.  This is convenient for handling web
-forms with check boxes (or a SELECT box with multiple choice) that let you
+forms with check boxes (or a select field with multiple choice) that lets you
 update such (pseudo) relations.  
 
-For a description how to set up base classes for ResultSets see load_namespaces
-in DBIx::Class::Schema.
+For a description how to set up base classes for ResultSets see L<DBIx::Class::Schema/load_namespaces>.
 
 =head1 DESIGN CHOICES
 
@@ -714,7 +718,7 @@ Clearing the relationship:
 
 =head2 Treatment of many-to-many pseudo relations
 
-The function gets the information about m2m relations from DBIx::Class::IntrospectableM2M.
+The function gets the information about m2m relations from L<DBIx::Class::IntrospectableM2M>.
 If it isn't loaded in the ResultSource classes the code relies on the fact that:
 
     if($object->can($name) and
