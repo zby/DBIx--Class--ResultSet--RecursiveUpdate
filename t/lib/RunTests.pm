@@ -9,7 +9,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 46;
+    plan tests => 47;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -19,6 +19,15 @@ sub run_tests {
     my $initial_user_count = $user_rs->count;
     my $initial_dvd_count  = $dvd_rs->count;
     my $updates;
+
+    $dvd_rs->search( { dvd_id => 1 } )->recursive_update( { 
+            owner =>  { username => 'aaa'  } 
+        },
+        [ 'dvd_id' ]
+    );
+
+    my $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
+    is( $u->username, 'aaa', 'fixed_fields' );
 
     # try to create with a not existing rel
     $updates = {
