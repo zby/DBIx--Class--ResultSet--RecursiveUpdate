@@ -34,7 +34,7 @@ sub recursive_update {
 }
 
 package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
-use Carp;
+use Carp::Clan;
 use Scalar::Util qw( blessed );
 use List::MoreUtils qw/ any /;
 
@@ -145,7 +145,7 @@ sub recursive_update {
 
         # don't throw a warning instead of an exception to give users
         # time to adapt to the new API
-        warn(
+        carp(
             "No such column, relationship, many-to-many helper accessor or generic accessor '$name'"
         ) unless $unknown_params_ok;
 

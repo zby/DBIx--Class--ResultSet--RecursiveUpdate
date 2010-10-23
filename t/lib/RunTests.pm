@@ -59,10 +59,10 @@ sub run_tests {
 # qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
 # 'nonexisting column, accessor, relationship fails'
 # );
-    warning_is {
+    warning_like {
         my $user = $user_rs->recursive_update($updates);
     }
-    "No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'",
+    qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
         'nonexisting column, accessor, relationship warns';
     $expected_user_count++;
     is( $user_rs->count, $expected_user_count, 'User created' );
