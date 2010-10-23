@@ -11,7 +11,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 51;
+    plan tests => 53;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -180,6 +180,11 @@ TODO: {
         'test note changed',
         'might_have record changed'
     );
+
+    my $dvd_with_tags = $dvd_rs->recursive_update({ id => $dvd->dvd_id, tags => [1, 2] });
+    is_deeply( [ map { $_->id } $dvd_with_tags->tags ], [ 1, 2 ], 'Tags set' );
+    my $dvd_without_tags = $dvd_rs->recursive_update({ id => $dvd->dvd_id, tags => undef });
+    is( $dvd_without_tags->tags->count, 0, 'Tags deleted when m2m accessor set to undef' );
 
     $new_dvd->update( { name => 'New Test Name' } );
     $updates = {
