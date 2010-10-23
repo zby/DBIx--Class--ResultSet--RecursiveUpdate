@@ -97,6 +97,7 @@ sub recursive_update {
     # database like has_many, might_have and has_one
     my %post_updates;
     my %other_methods;
+    my %m2m_accessors;
     my %columns_by_accessor = _get_columns_by_accessor($self);
 
     #    warn 'resolved: ' . Dumper( $resolved );
@@ -134,7 +135,7 @@ sub recursive_update {
         if ( is_m2m( $self, $name ) ) {
 
             #warn "$name is a many-to-many helper accessor\n";
-            $other_methods{$name} = $updates->{$name};
+            $m2m_accessors{$name} = $updates->{$name};
             next;
         }
 
@@ -190,42 +191,40 @@ sub recursive_update {
     $object->discard_changes;
 
     # updating many_to_many
-    for my $name ( keys %$updates ) {
-        next if exists $columns{$name};
-        my $value = $updates->{$name};
+    for my $name ( keys %m2m_accessors ) {
+        my $value = $m2m_accessors{$name};
 
-        if ( is_m2m( $self, $name ) ) {
-
-            #warn "update m2m $name\n";
-            my ($pk) = _get_pk_for_related( $self, $name );
-            my @rows;
-            my $result_source = $object->$name->result_source;
-            my @updates;
-            if ( !defined $value ) {
-                next;
-            }
-            elsif ( ref $value ) {
-                @updates = @{$value};
+        #warn "update m2m $name\n";
+        # TODO: only first pk col is used
+        my ($pk) = _get_pk_for_related( $self, $name );
+        my @rows;
+        my $result_source = $object->$name->result_source;
+        my @updates;
+        if ( !defined $value ) {
+            #next;
+            @updates = ();
+        }
+        elsif ( ref $value ) {
+            @updates = @{$value};
+        }
+        else {
+            @updates = ($value);
+        }
+        for my $elem (@updates) {
+            if ( ref $elem ) {
+                push @rows, $elem;
+                    # recursive_update(
+                    # resultset => $result_source->resultset,
+                    # updates   => $elem
+                    # );
             }
             else {
-                @updates = ($value);
+                push @rows,
+                    $result_source->resultset->find( { $pk => $elem } );
             }
-            for my $elem (@updates) {
-                if ( ref $elem ) {
-                    push @rows,
-                        recursive_update(
-                        resultset => $result_source->resultset,
-                        updates   => $elem
-                        );
-                }
-                else {
-                    push @rows,
-                        $result_source->resultset->find( { $pk => $elem } );
-                }
-            }
-            my $set_meth = 'set_' . $name;
-            $object->$set_meth( \@rows );
         }
+        my $set_meth = 'set_' . $name;
+        $object->$set_meth( \@rows );
     }
     for my $name ( keys %post_updates ) {
 
