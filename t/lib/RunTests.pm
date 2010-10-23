@@ -172,7 +172,7 @@ TODO: {
     is( $schema->resultset('User')->count,
         $expected_user_count, "No new user created" );
     is( $dvd_updated->name, undef, 'Dvd name deleted' );
-    is( $dvd_updated->owner->id, $another_owner->id, 'Owner updated' );
+    is( $dvd_updated->get_column('owner'), $another_owner->id, 'Owner updated' );
     is( $dvd_updated->current_borrower->name,
         'new name a', 'Related record modified' );
     is( $dvd_updated->tags->count, 0, 'Tags deleted' );
