@@ -50,7 +50,7 @@ sub recursive_update {
     my $source = $self->result_source;
 
     # warn 'entering: ' . $source->from();
-    carp 'fixed fields needs to be an array ref'
+    croak 'fixed fields needs to be an arrayref'
         if defined $fixed_fields && ref $fixed_fields ne 'ARRAY';
 
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
