@@ -47,7 +47,9 @@ sub recursive_update {
         };
     $resolved ||= {};
 
-    # warn 'entering: ' . $self->result_source->from();
+    my $source = $self->result_source;
+
+    # warn 'entering: ' . $source->from();
     carp 'fixed fields needs to be an array ref'
         if defined $fixed_fields && ref $fixed_fields ne 'ARRAY';
 
@@ -62,7 +64,7 @@ sub recursive_update {
         if $fixed_fields;
     my @missing =
         grep { !exists $updates->{$_} && !exists $fixed_fields{$_} }
-        $self->result_source->primary_columns;
+        $source->primary_columns;
     if ( !$object && !scalar @missing ) {
 
         # warn 'finding by: ' . Dumper( $updates ); use Data::Dumper;
@@ -96,8 +98,6 @@ sub recursive_update {
     #    warn 'updates: ' . Dumper( $updates ); use Data::Dumper;
     #    warn 'columns: ' . Dumper( \%columns_by_accessor );
     for my $name ( keys %$updates ) {
-        my $source = $self->result_source;
-
         # columns
         if ( exists $columns_by_accessor{$name}
             && !( $source->has_relationship($name)
