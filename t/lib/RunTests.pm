@@ -3,6 +3,7 @@ package RunTests;
 use Exporter 'import';    # gives you Exporter's import() method directly
 @EXPORT = qw(run_tests);
 use strict;
+use warnings;
 use Test::More;
 use Test::Warn;
 use DBIx::Class::ResultSet::RecursiveUpdate;
@@ -41,7 +42,7 @@ sub run_tests {
         }
     );
 
-    my $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
+    $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
     is( $u->username, 'bbb', 'fixed_fields 0.21+ api ok' );
 
     # try to create with a not existing rel
@@ -89,7 +90,7 @@ sub run_tests {
     $updates = {
         name     => 'Test name 2',
         viewings => [ { user_id => $owner->id } ],
-        owner => { id => $another_owner->id },
+        owner    => { id => $another_owner->id },
     };
 
     my $new_dvd = $dvd_rs->recursive_update($updates);
@@ -104,8 +105,6 @@ sub run_tests {
 
     # creating new records
     $updates = {
-
-        #aaaa => undef,
         tags             => [ '2', { id => '3' } ],
         name             => 'Test name',
         owner            => $owner,
@@ -156,10 +155,9 @@ TODO: {
     my $num_of_users = $user_rs->count;
     $updates = {
         id               => $dvd->dvd_id,         # id instead of dvd_id
-                                                  #aaaa => undef,
         name             => undef,
         tags             => [],
-        'owner'          => $another_owner->id,
+        owner            => $another_owner->id,
         current_borrower => {
             username => 'new name a',
             name     => 'new name a',
@@ -275,7 +273,7 @@ TODO: {
         );
     is( $user->borrowed_dvds->count, 1, 'if_not_submitted delete' );
 
-    @tags = $schema->resultset('Tag')->search();
+    @tags = $schema->resultset('Tag')->all;
     $dvd_updated =
         DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
         resultset => $schema->resultset('Dvd'),
