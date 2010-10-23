@@ -78,7 +78,7 @@ sub recursive_update {
         grep { !exists $resolved->{$_} } @missing;
     if ( !$object && !scalar @missing ) {
 
-       # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
+        # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
         $object = $self->find( $updates, { key => 'primary' } );
     }
 
@@ -171,7 +171,7 @@ sub recursive_update {
     for my $name ( keys %other_methods ) {
 
         #warn "update other $name\n";
-        $object->$name( $updates->{$name} );
+        $object->$name( $other_methods{$name} );
     }
     for my $name ( keys %pre_updates ) {
 
@@ -184,7 +184,7 @@ sub recursive_update {
     # don't allow insert to recurse to related objects
     # do the recursion ourselves
     # $object->{_rel_in_storage} = 1;
-    #warn "CHANGED: " . $object->is_changed . "\n":
+    #warn "CHANGED: " . $object->is_changed . "\n";
     #warn "IN STOR: " .  $object->in_storage . "\n";
     $object->update_or_insert if $object->is_changed;
     $object->discard_changes;
