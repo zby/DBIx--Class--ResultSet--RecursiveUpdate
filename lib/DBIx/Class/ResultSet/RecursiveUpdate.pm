@@ -49,6 +49,12 @@ sub recursive_update {
 
     my $source = $self->result_source;
 
+    croak "first parameter needs to be defined"
+        unless defined $updates;
+
+    croak "first parameter needs to be a hashref"
+        unless ref($updates) eq 'HASH';
+
     # warn 'entering: ' . $source->from();
     croak 'fixed fields needs to be an arrayref'
         if defined $fixed_fields && ref $fixed_fields ne 'ARRAY';
@@ -57,8 +63,10 @@ sub recursive_update {
         return $updates;
     }
     if ( exists $updates->{id} ) {
+
         # warn "finding object by id " . $updates->{id} . "\n";
         $object = $self->find( $updates->{id}, { key => 'primary' } );
+
         # warn "object not found by id\n"
         #     unless defined $object;
     }
@@ -104,6 +112,7 @@ sub recursive_update {
     #    warn 'updates: ' . Dumper( $updates ); use Data::Dumper;
     #    warn 'columns: ' . Dumper( \%columns_by_accessor );
     for my $name ( keys %$updates ) {
+
         # columns
         if ( exists $columns_by_accessor{$name}
             && !( $source->has_relationship($name)
@@ -210,12 +219,15 @@ sub recursive_update {
             carp "value of many-to-many rel '$name' must be an arrayref or scalar";
         }
         for my $elem (@updates) {
-            if ( ref $elem ) {
+            if ( blessed($elem) && $elem->isa('DBIx::Class::Row') ) {
                 push @rows, $elem;
-                    # recursive_update(
-                    # resultset => $result_source->resultset,
-                    # updates   => $elem
-                    # );
+            }
+            elsif ( ref $elem eq 'HASH' ) {
+                push @rows,
+                    recursive_update(
+                    resultset => $result_source->resultset,
+                    updates   => $elem
+                    );
             }
             else {
                 push @rows,
@@ -378,9 +390,12 @@ sub _update_relation {
         #warn "\tupdating rel '$name': $if_not_submitted\n";
         my $sub_object;
         if ( ref $updates ) {
+            if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
+                $sub_object = $updates;
+            }
 
             # for might_have relationship
-            if ( $info->{attrs}{accessor} eq 'single'
+            elsif ( $info->{attrs}{accessor} eq 'single'
                 && defined $object->$name )
             {
                 $sub_object = recursive_update(
