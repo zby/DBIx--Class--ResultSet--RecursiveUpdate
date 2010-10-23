@@ -56,8 +56,11 @@ sub recursive_update {
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
-    if ( $updates->{id} ) {
+    if ( exists $updates->{id} ) {
+        # warn "finding object by id " . $updates->{id} . "\n";
         $object = $self->find( $updates->{id}, { key => 'primary' } );
+        # warn "object not found by id\n"
+        #     unless defined $object;
     }
 
     my %fixed_fields = map { $_ => 1 } @$fixed_fields
