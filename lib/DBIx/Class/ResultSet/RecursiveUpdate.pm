@@ -575,6 +575,9 @@ __END__
         unknown_params_ok => 1,
     });
 
+    # You'll get a warning if you pass non-result specific data to
+    # recursive_update. See L</"Additional data in the updates hashref">
+    # for more information how to prevent this.
 
 =head1 DESCRIPTION
 
@@ -582,28 +585,27 @@ This is still experimental.
 
 You can feed the ->create method of DBIx::Class with a recursive datastructure
 and have the related records created. Unfortunately you cannot do a similar
-thing with update_or_create.
-This module tries to fill that void until L<DBIx::Class> has an api itself.
+thing with update_or_create. This module tries to fill that void until
+L<DBIx::Class> has an api itself.
 
 The functional interface can be used without modifications of the model,
 for example by form processors like L<HTML::FormHandler::Model::DBIC>.
 
-It is a base class for L<DBIx::Class::ResultSet>s providing the method recursive_update
-which works just like update_or_create but can recursively update or create
-data objects composed of multiple rows. All rows need to be identified by primary keys
-- so you need to provide them in the update structure (unless they can be deduced from 
-the parent row - for example when you have a belongs_to relationship).  
-If not all columns comprising the primary key are specified a new row will be created,
-with the expectation that the missing columns will be filled by it (as in the case of auto_increment 
-primary keys).  
+It is a base class for L<DBIx::Class::ResultSet>s providing the method
+recursive_update which works just like update_or_create but can recursively
+update or create result objects composed of multiple rows. All rows need to be
+identified by primary keys so you need to provide them in the update structure
+(unless they can be deduced from the parent row. For example a related row of
+a belongs_to relationship). If any of the primary key columns are missing,
+a new row will be created, with the expectation that the missing columns will
+be filled by it (as in the case of auto_increment primary keys).
 
-
-If the resultset itself stores an assignement for the primary key, 
+If the resultset itself stores an assignment for the primary key,
 like in the case of:
     
     my $restricted_rs = $user_rs->search( { id => 1 } );
 
-then you need to inform recursive_update about the additional predicate with the fixed_fields attribute:
+you need to inform recursive_update about the additional predicate with the fixed_fields attribute:
 
     my $user = $restricted_rs->recursive_update( {
             owned_dvds => [
@@ -619,11 +621,30 @@ then you need to inform recursive_update about the additional predicate with the
 
 For a many_to_many (pseudo) relation you can supply a list of primary keys
 from the other table and it will link the record at hand to those and
-only those records identified by them.  This is convenient for handling web
+only those records identified by them. This is convenient for handling web
 forms with check boxes (or a select field with multiple choice) that lets you
 update such (pseudo) relations.  
 
-For a description how to set up base classes for ResultSets see L<DBIx::Class::Schema/load_namespaces>.
+For a description how to set up base classes for ResultSets see
+L<DBIx::Class::Schema/load_namespaces>.
+
+=head2 Additional data in the updates hashref
+
+If you pass additional data to recursive_update which doesn't match a column
+name, column accessor, relationship or many-to-many helper accessor, it will
+throw a warning by default. To disable this behaviour you can set the
+unknown_params_ok attribute to a true value.
+
+The warning thrown is:
+"No such column, relationship, many-to-many helper accessor or generic accessor '$key'"
+
+When used by L<HTML::FormHandler::Model::DBIC> this can happen if you have
+additional form fields that aren't relevant to the database but don't have the
+noupdate attribute set to a true value.
+
+NOTE: in a future version this behaviour will change and throw an exception
+instead of a warning!
+
 
 =head1 DESIGN CHOICES
 
@@ -698,6 +719,67 @@ Updating the relationship:
 
     Passing ids:
 
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => [1, 2],
+    });
+
+    Passing hashrefs:
+
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => [
+            {
+                name => 'temp name 1',
+            },
+            {
+                name => 'temp name 2',
+            },
+        ],
+    });
+
+    Passing objects:
+
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => [ $dvd1, $dvd2 ],
+    });
+
+    You can even mix them:
+
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => [ 1, { id => 2 } ],
+    });
+
+Clearing the relationship:
+
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => undef,
+    });
+
+    This is the same as passing an empty array:
+
+    my $user = $user_rs->recursive_update( {
+        id         => 1,
+        owned_dvds => [],
+    });
+
+=head2 Treatment of many-to-many pseudo relations
+
+If a many-to-many accessor key is included in the data structure with a value
+of undef or an empty array, all existing related rows are unlinked.
+
+When the array contains elements they are updated if they exist, created when
+not and deleted if not included.
+
+See L</is_m2m> for many-to-many pseudo relationship detection.
+
+Updating the relationship:
+
+    Passing ids:
+
     my $dvd = $dvd_rs->recursive_update( {
         id   => 1,
         tags => [1, 2],
@@ -721,13 +803,16 @@ Updating the relationship:
 
     Passing objects:
 
-    TODO
+    my $dvd = $dvd_rs->recursive_update( {
+        id   => 1,
+        tags => [ $tag1, $tag2 ],
+    });
 
     You can even mix them:
 
     my $dvd = $dvd_rs->recursive_update( {
         id   => 1,
-        tags => [ '2', { id => '3' } ],
+        tags => [ 2, { id => 3 } ],
     });
 
 Clearing the relationship:
@@ -744,20 +829,6 @@ Clearing the relationship:
         tags => [],
     });
 
-=head2 Treatment of many-to-many pseudo relations
-
-The function gets the information about m2m relations from L<DBIx::Class::IntrospectableM2M>.
-If it isn't loaded in the ResultSource classes the code relies on the fact that:
-
-    if($object->can($name) and
-             !$object->result_source->has_relationship($name) and
-             $object->can( 'set_' . $name )
-         )
-
-Then $name must be a many to many pseudo relation.
-And that in a similarly ugly was I find out what is the ResultSource of
-objects from that many to many pseudo relation.
-
 
 =head1 INTERFACE 
 
@@ -769,17 +840,39 @@ The method that does the work here.
 
 =head2 is_m2m
 
-$self->is_m2m( 'name ' ) - answers the question if 'name' is a many to many
-(pseudo) relation on $self.
+=over 4
+
+=item Arguments: $name
+
+=item Return Value: true, if $name is a many to many pseudo-relationship
+
+=back
+
+The function gets the information about m2m relations from
+L<DBIx::Class::IntrospectableM2M>. If it isn't loaded in the ResultSource
+class, the code relies on the fact:
+
+    if($object->can($name) and
+             !$object->result_source->has_relationship($name) and
+             $object->can( 'set_' . $name )
+         )
+
+to identify a many to many pseudo relationship. In a similar ugly way the
+ResultSource of that many to many pseudo relationship is detected.
+
+So if you need many to many pseudo relationship support, it's strongly
+recommended to load L<DBIx::Class::IntrospectableM2M> in your ResultSource
+class!
 
 =head2 get_m2m_source
 
-$self->get_m2m_source( 'name' ) - returns the ResultSource linked to by the many
-to many (pseudo) relation 'name' from $self.
+=over 4
 
+=item Arguments: $name
 
-=head1 DIAGNOSTICS
+=item Return Value: $result_source
 
+=back
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
@@ -789,6 +882,9 @@ DBIx::Class::RecursiveUpdate requires no configuration files or environment vari
 
     DBIx::Class
 
+optional but recommended:
+    DBIx::Class::IntrospectableM2M
+
 =head1 INCOMPATIBILITIES
 
 None reported.
@@ -796,7 +892,7 @@ None reported.
 
 =head1 BUGS AND LIMITATIONS
 
-No bugs have been reported.
+The list of reported bugs can be viewed at L<http://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Class-ResultSet-RecursiveUpdate>.
 
 Please report any bugs or feature requests to
 C<bug-dbix-class-recursiveput@rt.cpan.org>, or through the web interface at
