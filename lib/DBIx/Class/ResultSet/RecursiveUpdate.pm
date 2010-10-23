@@ -197,18 +197,17 @@ sub recursive_update {
         #warn "update m2m $name\n";
         # TODO: only first pk col is used
         my ($pk) = _get_pk_for_related( $self, $name );
-        my @rows;
+        my @rows = ();
         my $result_source = $object->$name->result_source;
         my @updates;
-        if ( !defined $value ) {
-            #next;
-            @updates = ();
-        }
-        elsif ( ref $value ) {
+        if ( defined $value && ref $value eq 'ARRAY' ) {
             @updates = @{$value};
         }
-        else {
+        elsif ( defined $value && !ref $value ) {
             @updates = ($value);
+        }
+        else {
+            carp "value of many-to-many rel '$name' must be an arrayref or scalar";
         }
         for my $elem (@updates) {
             if ( ref $elem ) {
