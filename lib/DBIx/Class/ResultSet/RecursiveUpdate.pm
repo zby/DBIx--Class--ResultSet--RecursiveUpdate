@@ -81,7 +81,9 @@ sub recursive_update {
        # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
         $object = $self->find( $updates, { key => 'primary' } );
     }
-    $object ||= $self->new( {} );
+
+    $object = $self->new( {} )
+        unless defined $object;
 
     # warn Dumper( $updates ); use Data::Dumper;
     # direct column accessors
