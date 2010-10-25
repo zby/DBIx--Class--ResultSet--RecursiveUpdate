@@ -37,6 +37,7 @@ package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
 use Carp::Clan qw/^DBIx::Class|^HTML::FormHandler|^Try::Tiny/;
 use Scalar::Util qw( blessed );
 use List::MoreUtils qw/ any /;
+use Try::Tiny;
 
 sub recursive_update {
     my %params = @_;
@@ -86,14 +87,18 @@ sub recursive_update {
     if ( !defined $object && scalar @missing == 0 ) {
 
         # warn 'finding by: ' . Dumper( $updates ); use Data::Dumper;
-        $object = $self->find( $updates, { key => 'primary' } );
+        try {
+            $object = $self->find( $updates, { key => 'primary' } );
+        };
     }
     $updates = { %$updates, %$resolved };
     @missing = grep { !exists $resolved->{$_} } @missing;
     if ( !defined $object && scalar @missing == 0 ) {
 
-        # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
-        $object = $self->find( $updates, { key => 'primary' } );
+       # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
+        try {
+            $object = $self->find( $updates, { key => 'primary' } );
+        };
     }
 
     $object = $self->new( {} )
