@@ -11,7 +11,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 53;
+    plan tests => 55;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -45,46 +45,79 @@ sub run_tests {
     $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
     is( $u->username, 'bbb', 'fixed_fields 0.21+ api ok' );
 
-    # try to create with a not existing rel
-    $updates = {
-        name        => 'Test for nonexisting rel',
-        username    => 'nonexisting_rel',
-        password    => 'whatever',
-        nonexisting => { foo => 'bar' },
-    };
+    {
 
-# for future use when we switch from warn to throw_exception
-# eval { $user_rs->recursive_update($updates); };
-# like(
-# $@,
-# qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
-# 'nonexisting column, accessor, relationship fails'
-# );
-    warning_like {
-        my $user = $user_rs->recursive_update($updates);
+        # try to create with a not existing rel
+        my $updates = {
+            name        => 'Test for nonexisting rel',
+            username    => 'nonexisting_rel',
+            password    => 'whatever',
+            nonexisting => { foo => 'bar' },
+        };
+
+        warning_like {
+            my $user = $user_rs->recursive_update($updates);
+        }
+        qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
+            'nonexisting column, accessor, relationship warns';
+        $expected_user_count++;
+        is( $user_rs->count, $expected_user_count, 'User created' );
+
+        # for future use when we switch from warn to throw_exception
+        # eval { $user_rs->recursive_update($updates); };
+        # like(
+        # $@,
+        # qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
+        # 'nonexisting column, accessor, relationship fails'
+        # );
     }
-    qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
-        'nonexisting column, accessor, relationship warns';
-    $expected_user_count++;
-    is( $user_rs->count, $expected_user_count, 'User created' );
 
-    # try to create with a not existing rel but suppressed warning
-    $updates = {
-        name        => 'Test for nonexisting rel with suppressed warning',
-        username    => 'suppressed_nonexisting_rel',
-        password    => 'whatever',
-        nonexisting => { foo => 'bar' },
-    };
+    {
 
-    warning_is {
-        my $user =
-            $user_rs->recursive_update( $updates,
-            { unknown_params_ok => 1 } );
+        # try to create with a not existing rel but suppressed warning
+        my $updates = {
+            name        => 'Test for nonexisting rel with suppressed warning',
+            username    => 'suppressed_nonexisting_rel',
+            password    => 'whatever',
+            nonexisting => { foo => 'bar' },
+        };
+
+        warning_is {
+            my $user =
+                $user_rs->recursive_update( $updates,
+                { unknown_params_ok => 1 } );
+        }
+        "",
+            "nonexisting column, accessor, relationship doesn't warn with unknown_params_ok";
+        $expected_user_count++;
+        is( $user_rs->count, $expected_user_count, 'User created' );
     }
-    "",
-        "nonexisting column, accessor, relationship doesn't warn with unknown_params_ok";
-    $expected_user_count++;
-    is( $user_rs->count, $expected_user_count, 'User created' );
+
+    {
+
+        # try to create with a not existing rel, suppressed warning but storage debugging
+        my $updates = {
+            name        => 'Test for nonexisting rel with suppressed warning but storage debugging',
+            username    => 'suppressed_nonexisting_rel_with_storage_debug',
+            password    => 'whatever',
+            nonexisting => { foo => 'bar' },
+        };
+
+        my $debug = $user_rs->result_source->storage->debug;
+        $user_rs->result_source->storage->debug(1);
+
+        warning_like {
+            my $user =
+                $user_rs->recursive_update( $updates,
+                { unknown_params_ok => 1 } );
+        }
+        qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
+            "nonexisting column, accessor, relationship doesn't warn with unknown_params_ok";
+        $expected_user_count++;
+        is( $user_rs->count, $expected_user_count, 'User created' );
+
+        $user_rs->result_source->storage->debug($debug);
+    }
 
     # creating new record linked to some old record
     $updates = {

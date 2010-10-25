@@ -59,6 +59,10 @@ sub recursive_update {
     croak 'fixed fields needs to be an arrayref'
         if defined $fixed_fields && ref $fixed_fields ne 'ARRAY';
 
+    # always warn about additional parameters if storage debugging is enabled
+    $unknown_params_ok = 0
+        if $source->storage->debug;
+
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
