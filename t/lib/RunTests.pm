@@ -24,25 +24,19 @@ sub run_tests {
     my $updates;
 
     # pre 0.21 api
-    $dvd_rs->search( { dvd_id => 1 } )->recursive_update( {
-            owner =>  { username => 'aaa'  }
-        },
-        [ 'dvd_id' ]
-    );
+    $dvd_rs->search( { dvd_id => 1 } )
+        ->recursive_update( { owner => { username => 'aaa' } }, ['dvd_id'] );
 
-    my $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
+    my $u = $user_rs->find( $dvd_rs->find(1)->owner->id );
     is( $u->username, 'aaa', 'fixed_fields pre 0.21 api ok' );
 
-     # 0.21+ api
-    $dvd_rs->search( { dvd_id => 1 } )->recursive_update( {
-            owner =>  { username => 'bbb'  }
-        },
-        {
-            fixed_fields => [ 'dvd_id' ],
-        }
+    # 0.21+ api
+    $dvd_rs->search( { dvd_id => 1 } )->recursive_update(
+        { owner        => { username => 'bbb' } },
+        { fixed_fields => ['dvd_id'], }
     );
 
-    $u = $user_rs->find( $dvd_rs->find( 1 )->owner->id );
+    $u = $user_rs->find( $dvd_rs->find(1)->owner->id );
     is( $u->username, 'bbb', 'fixed_fields 0.21+ api ok' );
 
     {
@@ -123,7 +117,7 @@ sub run_tests {
     $updates = {
         name     => 'Test name 2',
         viewings => [ { user_id => $owner->id } ],
-        owner    => { id => $another_owner->id },
+        owner => { id => $another_owner->id },
     };
 
     my $new_dvd = $dvd_rs->recursive_update($updates);
@@ -205,7 +199,8 @@ TODO: {
     is( $schema->resultset('User')->count,
         $expected_user_count, "No new user created" );
     is( $dvd_updated->name, undef, 'Dvd name deleted' );
-    is( $dvd_updated->get_column('owner'), $another_owner->id, 'Owner updated' );
+    is( $dvd_updated->get_column('owner'),
+        $another_owner->id, 'Owner updated' );
     is( $dvd_updated->current_borrower->name,
         'new name a', 'Related record modified' );
     is( $dvd_updated->tags->count, 0, 'Tags deleted' );
@@ -214,10 +209,14 @@ TODO: {
         'might_have record changed'
     );
 
-    my $dvd_with_tags = $dvd_rs->recursive_update({ id => $dvd->dvd_id, tags => [1, 2] });
-    is_deeply( [ map { $_->id } $dvd_with_tags->tags ], [ 1, 2 ], 'Tags set' );
-    my $dvd_without_tags = $dvd_rs->recursive_update({ id => $dvd->dvd_id, tags => undef });
-    is( $dvd_without_tags->tags->count, 0, 'Tags deleted when m2m accessor set to undef' );
+    my $dvd_with_tags =
+        $dvd_rs->recursive_update( { id => $dvd->dvd_id, tags => [ 1, 2 ] } );
+    is_deeply( [ map { $_->id } $dvd_with_tags->tags ], [ 1, 2 ],
+        'Tags set' );
+    my $dvd_without_tags =
+        $dvd_rs->recursive_update( { id => $dvd->dvd_id, tags => undef } );
+    is( $dvd_without_tags->tags->count,
+        0, 'Tags deleted when m2m accessor set to undef' );
 
     $new_dvd->update( { name => 'New Test Name' } );
     $updates = {
