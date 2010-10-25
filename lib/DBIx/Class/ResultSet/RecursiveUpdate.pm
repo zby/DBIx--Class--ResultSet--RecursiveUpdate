@@ -79,26 +79,36 @@ sub recursive_update {
 
     my %fixed_fields = map { $_ => 1 } @$fixed_fields
         if $fixed_fields;
+    # the updates hashref might contain the pk columns
+    # but with an undefined value
     my @missing =
-        grep { !exists $updates->{$_} && !exists $fixed_fields{$_} }
-        $source->primary_columns;
+        grep {
+        ( !exists $updates->{$_}
+                || ( exists $updates->{$_} && !defined $updates->{$_} ) )
+            && !exists $fixed_fields{$_}
+        } $source->primary_columns;
 
     # warn "MISSING: " . join(', ', @missing) . "\n";
     if ( !defined $object && scalar @missing == 0 ) {
 
         # warn 'finding by: ' . Dumper( $updates ); use Data::Dumper;
-        try {
-            $object = $self->find( $updates, { key => 'primary' } );
-        };
+        $object = $self->find( $updates, { key => 'primary' } );
     }
+
+    # add the resolved columns to the updates hashref
     $updates = { %$updates, %$resolved };
-    @missing = grep { !exists $resolved->{$_} } @missing;
+    # the resolved hashref might contain the pk columns
+    # but with an undefined value
+    @missing = grep {
+        !exists $resolved->{$_}
+            || ( exists $resolved->{$_} && !defined $resolved->{$_} )
+    } @missing;
+
+    #warn "MISSING2: " . join( ', ', @missing ) . "\n";
     if ( !defined $object && scalar @missing == 0 ) {
 
        # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
-        try {
-            $object = $self->find( $updates, { key => 'primary' } );
-        };
+        $object = $self->find( $updates, { key => 'primary' } );
     }
 
     $object = $self->new( {} )
