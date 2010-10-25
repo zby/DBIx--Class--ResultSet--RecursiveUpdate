@@ -66,7 +66,8 @@ sub recursive_update {
     if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
         return $updates;
     }
-    if ( exists $updates->{id} ) {
+
+    if ( !defined $object && exists $updates->{id} ) {
 
         # warn "finding object by id " . $updates->{id} . "\n";
         $object = $self->find( $updates->{id}, { key => 'primary' } );
@@ -80,15 +81,16 @@ sub recursive_update {
     my @missing =
         grep { !exists $updates->{$_} && !exists $fixed_fields{$_} }
         $source->primary_columns;
-    if ( !$object && !scalar @missing ) {
+
+    # warn "MISSING: " . join(', ', @missing) . "\n";
+    if ( !defined $object && scalar @missing == 0 ) {
 
         # warn 'finding by: ' . Dumper( $updates ); use Data::Dumper;
         $object = $self->find( $updates, { key => 'primary' } );
     }
     $updates = { %$updates, %$resolved };
-    @missing =
-        grep { !exists $resolved->{$_} } @missing;
-    if ( !$object && !scalar @missing ) {
+    @missing = grep { !exists $resolved->{$_} } @missing;
+    if ( !defined $object && scalar @missing == 0 ) {
 
         # warn 'finding by +resolved: ' . Dumper( $updates ); use Data::Dumper;
         $object = $self->find( $updates, { key => 'primary' } );
@@ -210,7 +212,7 @@ sub recursive_update {
         #warn "update m2m $name\n";
         # TODO: only first pk col is used
         my ($pk) = _get_pk_for_related( $self, $name );
-        my @rows = ();
+        my @rows;
         my $result_source = $object->$name->result_source;
         my @updates;
         if ( defined $value && ref $value eq 'ARRAY' ) {
@@ -219,8 +221,9 @@ sub recursive_update {
         elsif ( defined $value && !ref $value ) {
             @updates = ($value);
         }
-        else {
-            carp "value of many-to-many rel '$name' must be an arrayref or scalar";
+        elsif ( defined $value ) {
+            carp
+                "value of many-to-many rel '$name' must be an arrayref or scalar: $value";
         }
         for my $elem (@updates) {
             if ( blessed($elem) && $elem->isa('DBIx::Class::Row') ) {
@@ -295,6 +298,8 @@ sub _update_relation {
         if defined $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             && $DBIx::Class::ResultSource::UNRESOLVABLE_CONDITION
             == $resolved;
+
+    #warn "RESOLVED: " . Dumper($resolved); use Data::Dumper;
 
     my @rel_cols = keys %{ $info->{cond} };
     map {s/^foreign\.//} @rel_cols;
