@@ -79,14 +79,12 @@ sub recursive_update {
 
     my %fixed_fields = map { $_ => 1 } @$fixed_fields
         if $fixed_fields;
+
     # the updates hashref might contain the pk columns
     # but with an undefined value
     my @missing =
-        grep {
-        ( !exists $updates->{$_}
-                || ( exists $updates->{$_} && !defined $updates->{$_} ) )
-            && !exists $fixed_fields{$_}
-        } $source->primary_columns;
+        grep { !defined $updates->{$_} && !exists $fixed_fields{$_} }
+        $source->primary_columns;
 
     # warn "MISSING: " . join(', ', @missing) . "\n";
     if ( !defined $object && scalar @missing == 0 ) {
@@ -97,12 +95,10 @@ sub recursive_update {
 
     # add the resolved columns to the updates hashref
     $updates = { %$updates, %$resolved };
+
     # the resolved hashref might contain the pk columns
     # but with an undefined value
-    @missing = grep {
-        !exists $resolved->{$_}
-            || ( exists $resolved->{$_} && !defined $resolved->{$_} )
-    } @missing;
+    @missing = grep { !defined $resolved->{$_} } @missing;
 
     #warn "MISSING2: " . join( ', ', @missing ) . "\n";
     if ( !defined $object && scalar @missing == 0 ) {
