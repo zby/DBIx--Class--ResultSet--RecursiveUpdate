@@ -1,6 +1,8 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
 {{ $NEXT }}
+
+0.21      2010-10-28 16:56:18 Europe/Vienna
     - Warn instead of throwing an exception if a key is neither
       a column, a relationship nor a many-to-many helper.
     - More documentation improvements
