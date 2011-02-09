@@ -166,7 +166,7 @@ sub run_tests {
         'Twokeys created'
     );
     my $onekey =
-        $schema->resultset('Onekey')->search( name => 'aaaaa' )->first;
+        $schema->resultset('Onekey')->search({ name => 'aaaaa' })->first;
     ok( $onekey, 'Onekey created' );
     ok( $schema->resultset('Twokeys_belongsto')
             ->find( { key1 => $onekey->id, key2 => 1 } ),
