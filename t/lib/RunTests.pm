@@ -11,7 +11,7 @@ use DBIx::Class::ResultSet::RecursiveUpdate;
 sub run_tests {
     my $schema = shift;
 
-    plan tests => 55;
+    plan tests => 59;
 
     my $dvd_rs  = $schema->resultset('Dvd');
     my $user_rs = $schema->resultset('User');
@@ -282,6 +282,8 @@ TODO: {
     $dvd = $dvd_rs->find(1);
     is( $dvd->get_column('owner'), $user->id, 'foreign key set' );
 
+    # has_many where foreign cols are nullable
+    my $available_dvd_rs = $dvd_rs->search({ current_borrower => undef });
     $dvd_rs->update( { current_borrower => $user->id } );
     ok( $user->borrowed_dvds->count > 1, 'Precond' );
     $updates = {
@@ -294,21 +296,27 @@ TODO: {
         updates          => $updates,
         if_not_submitted => 'set_to_null',
         );
-    is( $user->borrowed_dvds->count, 1, 'set_to_null' );
+    is( $user->borrowed_dvds->count, 1, 'borrowed_dvds update with if_not_submitted => set_to_null ok' );
+    is( $available_dvd_rs->count, 5, "previously borrowed dvds weren't deleted");
 
-    # has_many where foreign cols are nullable
     $dvd_rs->update( { current_borrower => $user->id } );
-    $updates = {
-        id            => $user->id,
-        borrowed_dvds => [ { id => $dvd->id }, ]
-    };
+    $user =
+        DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
+        resultset        => $user_rs,
+        updates          => $updates,
+        );
+    is( $user->borrowed_dvds->count, 1, 'borrowed_dvds update without if_not_submitted ok' );
+    is( $available_dvd_rs->count, 5, "previously borrowed dvds weren't deleted");
+
+    $dvd_rs->update( { current_borrower => $user->id } );
     $user =
         DBIx::Class::ResultSet::RecursiveUpdate::Functions::recursive_update(
         resultset        => $user_rs,
         updates          => $updates,
         if_not_submitted => 'delete',
         );
-    is( $user->borrowed_dvds->count, 1, 'if_not_submitted delete' );
+    is( $user->borrowed_dvds->count, 1, 'borrowed_dvds update with if_not_submitted => delete ok' );
+    is( $dvd_rs->count, 1, 'all dvds except the one borrowed by the user were deleted');
 
     @tags = $schema->resultset('Tag')->all;
     $dvd_updated =

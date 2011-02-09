@@ -326,7 +326,7 @@ sub _update_relation {
                 ->{is_nullable};
     }
 
-    $if_not_submitted = $all_fks_nullable ? 'nullify' : 'delete'
+    $if_not_submitted = $all_fks_nullable ? 'set_to_null' : 'delete'
         unless defined $if_not_submitted;
 
     #warn "\tNULLABLE: $all_fks_nullable ACTION: $if_not_submitted\n";
@@ -387,9 +387,9 @@ sub _update_relation {
                 $rs_rel_delist =
                     $rs_rel_delist->search_rs( { -not => [@cond] } );
             }
+            #warn "\tCOND: " . Dumper(\@cond);
         }
 
-        #warn "\tCOND: " . Dumper(\%cond);
         #my $rel_delist_cnt = $rs_rel_delist->count;
         if ( $if_not_submitted eq 'delete' ) {
 
