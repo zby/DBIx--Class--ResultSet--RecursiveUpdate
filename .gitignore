@@ -5,3 +5,5 @@
 # make
 /blib/
 /pm_to_blib
+# tests
+t/var/
