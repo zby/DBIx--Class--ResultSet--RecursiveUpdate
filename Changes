@@ -1,6 +1,8 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
 {{ $NEXT }}
+
+0.22      2011-02-09 19:06:34 Europe/Vienna
     - Fixed updating of nullable has_many rels (RT#65561)
     - Fixed usage with moosified resultsets (RT#64773)
 
