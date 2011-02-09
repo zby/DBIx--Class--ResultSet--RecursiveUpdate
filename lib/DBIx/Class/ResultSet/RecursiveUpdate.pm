@@ -107,7 +107,7 @@ sub recursive_update {
         $object = $self->find( $updates, { key => 'primary' } );
     }
 
-    $object = $self->new( {} )
+    $object = $self->new_result( {} )
         unless defined $object;
 
     # warn Dumper( $updates ); use Data::Dumper;
@@ -463,7 +463,7 @@ sub is_m2m {
     if ( $rclass->can('_m2m_metadata') ) {
         return $rclass->_m2m_metadata->{$relation};
     }
-    my $object = $self->new( {} );
+    my $object = $self->new_result( {} );
     if (    $object->can($relation)
         and !$self->result_source->has_relationship($relation)
         and $object->can( 'set_' . $relation ) )
@@ -484,7 +484,7 @@ sub get_m2m_source {
             ->related_source(
             $rclass->_m2m_metadata->{$relation}{foreign_relation} );
     }
-    my $object = $self->new( {} );
+    my $object = $self->new_result( {} );
     my $r = $object->$relation;
     return $r->result_source;
 }

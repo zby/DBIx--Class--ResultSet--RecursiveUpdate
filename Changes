@@ -2,6 +2,7 @@ Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
 {{ $NEXT }}
     - Fixed updating of nullable has_many rels (RT#65561)
+    - Fixed usage with moosified resultsets (RT#64773)
 
 0.21      2010-10-28 16:56:18 Europe/Vienna
     - Warn instead of throwing an exception if a key is neither
