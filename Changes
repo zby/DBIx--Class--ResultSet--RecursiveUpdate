@@ -1,6 +1,9 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
 {{ $NEXT }}
+    - Fixed moosified-rs.t failures by making the test skip if not all
+      dependencies are met. Requiring Moose for a compatability test would
+      have been overkill. (thanks CPANTesters & RT#65959)
 
 0.22      2011-02-09 19:06:34 Europe/Vienna
     - Fixed updating of nullable has_many rels (RT#65561)
