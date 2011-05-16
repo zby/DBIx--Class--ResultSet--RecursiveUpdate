@@ -2,6 +2,10 @@ Revision history for DBIx::Class::ResultSet::RecursiveUpdate
 
 {{ $NEXT }}
 
+    - Fixed test case that was failing on newer versions of DBIC, which
+      is more strict when inspecting relationship join conditions.  You
+      will need this when you want to upgrade DBIC.
+
 0.23      2011-02-24 18:23:50 Europe/Vienna
     - Fixed moosified-rs.t failures by making the test skip if not all
       dependencies are met. Requiring Moose for a compatability test would
