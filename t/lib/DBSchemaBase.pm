@@ -11,10 +11,10 @@ sub tables_exist {
 }
 
 sub get_test_schema {
-    my ( $class, $dsn, $user, $pass ) = @_;
+    my ( $class, $dsn, $user, $pass, $opts ) = @_;
     $dsn ||= 'dbi:SQLite:dbname=t/var/dvdzbr.db';
     warn "testing $dsn\n";
-    my $schema = $class->connect( $dsn, $user, $pass, {} );
+    my $schema = $class->connect( $dsn, $user, $pass, $opts || {} );
     my $deploy_attrs;
     $deploy_attrs->{add_drop_table} = 1 if tables_exist( $schema->storage->dbh );
     $schema->deploy( $deploy_attrs );
