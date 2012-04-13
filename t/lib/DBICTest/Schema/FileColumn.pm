@@ -1,4 +1,4 @@
-package 
+package
 DBICTest::Schema::FileColumn;
 
 use strict;
@@ -6,7 +6,7 @@ use warnings;
 use base qw/DBIx::Class::Core/;
 use File::Temp qw/tempdir/;
 
-__PACKAGE__->load_components(qw/InflateColumn::File/);
+__PACKAGE__->load_components(qw/InflateColumn::FS/);
 
 __PACKAGE__->table('file_columns');
 
