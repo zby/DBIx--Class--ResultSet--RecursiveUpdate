@@ -45,8 +45,6 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key('dvd_id');
-__PACKAGE__->add_unique_constraint(dvd_name => [qw(name)]);
-__PACKAGE__->add_unique_constraint(dvd_twokeys => [qw(twokeysfk)]);
 __PACKAGE__->belongs_to('owner', 'DBSchema::Result::User', 'owner');
 __PACKAGE__->belongs_to('current_borrower', 'DBSchema::Result::User', 'current_borrower', { join_type => "LEFT" });
 __PACKAGE__->has_many('dvdtags', 'Dvdtag', { 'foreign.dvd' => 'self.dvd_id' });
