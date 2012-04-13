@@ -47,6 +47,7 @@ sub recursive_update {
         qw/resultset updates fixed_fields object resolved if_not_submitted unknown_params_ok/
         };
     $resolved ||= {};
+    $ENV{DBIC_NULLABLE_KEY_NOWARN} = 1;
 
     my $source = $self->result_source;
 
@@ -261,6 +262,7 @@ sub recursive_update {
         _update_relation( $self, $name, $post_updates{$name}, $object,
             $if_not_submitted );
     }
+    delete $ENV{DBIC_NULLABLE_KEY_NOWARN};
     return $object;
 }
 
