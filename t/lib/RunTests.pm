@@ -6,6 +6,7 @@ use strict;
 use warnings;
 use Test::More;
 use Test::Warn;
+use Test::Trap;
 use DBIx::Class::ResultSet::RecursiveUpdate;
 
 sub run_tests {
@@ -100,13 +101,14 @@ sub run_tests {
         my $debug = $user_rs->result_source->storage->debug;
         $user_rs->result_source->storage->debug(1);
 
-        warning_like {
-            my $user =
+        my $user;
+        my @r = trap {
+            $user =
                 $user_rs->recursive_update( $updates,
                 { unknown_params_ok => 1 } );
-        }
-        qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
-            "nonexisting column, accessor, relationship doesn't warn with unknown_params_ok";
+        };
+        like ( $trap->stderr, qr/No such column, relationship, many-to-many helper accessor or generic accessor 'nonexisting'/,
+            "nonexisting column, accessor, relationship doesn't warn with unknown_params_ok" );
         $expected_user_count++;
         is( $user_rs->count, $expected_user_count, 'User created' );
 
