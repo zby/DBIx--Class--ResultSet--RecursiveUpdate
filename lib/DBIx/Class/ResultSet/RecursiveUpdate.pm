@@ -36,7 +36,7 @@ sub recursive_update {
 package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
 use Carp::Clan qw/^DBIx::Class|^HTML::FormHandler|^Try::Tiny/;
 use Scalar::Util qw( blessed );
-use List::MoreUtils qw/ any /;
+use List::MoreUtils qw/ any all/;
 use Try::Tiny;
 
 sub recursive_update {
@@ -69,7 +69,12 @@ sub recursive_update {
         return $updates;
     }
 
-    if ( !defined $object && exists $updates->{id} ) {
+    if ( !defined $object && all { exists $updates->{$_} } $self->result_source->primary_columns ) {
+
+	my @pks = map {$updates->{$_} } $self->result_source->primary_columns;
+        $object = $self->find( @pks, { key => 'primary' } );
+    }
+    elsif ( !defined $object && exists $updates->{id}  ) {
 
         # warn "finding object by id " . $updates->{id} . "\n";
         $object = $self->find( $updates->{id}, { key => 'primary' } );
