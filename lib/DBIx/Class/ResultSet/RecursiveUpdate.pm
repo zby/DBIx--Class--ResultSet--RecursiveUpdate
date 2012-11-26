@@ -373,7 +373,7 @@ sub _update_relation {
         # foreign table has a single pk column
         if ( scalar @related_pks == 1 ) {
             $rs_rel_delist = $rs_rel_delist->search_rs(
-                { 'me.'.  $related_pks[0] =>
+                { $self->current_source_alias . "." . $related_pks[0] =>
                         { -not_in => [ map ( $_->id, @updated_objs ) ] }
                 }
             );
@@ -385,7 +385,8 @@ sub _update_relation {
             for my $obj (@updated_objs) {
                 my %cond_for_obj;
                 for my $col (@related_pks) {
-                    $cond_for_obj{"me.$col"} = $obj->get_column($col);
+                    $cond_for_obj{$self->current_source_alias . ".$col"} = $obj->get_column($col);
+
                 }
                 push @cond, \%cond_for_obj;
             }
