@@ -35,4 +35,21 @@ lives_ok ( sub {
   isa_ok ($single, 'DBICTest::CD', 'Created a single with the track');
 });
 
+my $track = $schema->resultset('Track')->find($track_id);
+ok( $track );
+my $old_cd_single = $track->get_column('cd_single');
+my $updates = {
+    trackid => $track_id,
+    cd => $track->cd->cdid,
+    title => 'Multicreate rocks',
+    cd_single => {
+        artist => $track->cd->artist,
+        year => 2010,
+        title => 'Replaced the Track',
+    }
+};
+$track->recursive_updates($updates);
+ok( $track->cd_single, 'we have a cd_single' );
+ok( $old_cd_single != $track->get_column('cd_single'), 'we have a different cd_single' );
+
 done_testing;
