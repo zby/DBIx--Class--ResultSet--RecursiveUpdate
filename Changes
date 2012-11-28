@@ -1,4 +1,7 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
+0.26  Wed Nov 28, 2012
+    - Fix multi-pk has_many bug
+    - Fix has_many with where conditions
 
 0.25  Thu Apr 12, 2012
     - Suppress DBIC warnings: NULL/undef values supplied for requested
