@@ -36,7 +36,7 @@ sub recursive_update {
 package DBIx::Class::ResultSet::RecursiveUpdate::Functions;
 use Carp::Clan qw/^DBIx::Class|^HTML::FormHandler|^Try::Tiny/;
 use Scalar::Util qw( blessed );
-use List::MoreUtils qw/ any /;
+use List::MoreUtils qw/ any all/;
 use Try::Tiny;
 
 sub recursive_update {
@@ -69,7 +69,12 @@ sub recursive_update {
         return $updates;
     }
 
-    if ( !defined $object && exists $updates->{id} ) {
+    if ( !defined $object && all { exists $updates->{$_} } $self->result_source->primary_columns ) {
+
+	my @pks = map {$updates->{$_} } $self->result_source->primary_columns;
+        $object = $self->find( @pks, { key => 'primary' } );
+    }
+    elsif ( !defined $object && exists $updates->{id}  ) {
 
         # warn "finding object by id " . $updates->{id} . "\n";
         $object = $self->find( $updates->{id}, { key => 'primary' } );
@@ -362,12 +367,13 @@ sub _update_relation {
 
         my @related_pks = $related_resultset->result_source->primary_columns;
 
+
         my $rs_rel_delist = $object->$name;
 
         # foreign table has a single pk column
         if ( scalar @related_pks == 1 ) {
             $rs_rel_delist = $rs_rel_delist->search_rs(
-                {   $related_pks[0] =>
+                { $self->current_source_alias . "." . $related_pks[0] =>
                         { -not_in => [ map ( $_->id, @updated_objs ) ] }
                 }
             );
@@ -379,7 +385,8 @@ sub _update_relation {
             for my $obj (@updated_objs) {
                 my %cond_for_obj;
                 for my $col (@related_pks) {
-                    $cond_for_obj{$col} = $obj->get_column($col);
+                    $cond_for_obj{$self->current_source_alias . ".$col"} = $obj->get_column($col);
+
                 }
                 push @cond, \%cond_for_obj;
             }
