@@ -176,7 +176,8 @@ sub recursive_update {
     # don't allow insert to recurse to related objects
     # do the recursion ourselves
     # $object->{_rel_in_storage} = 1;
-    $object->update_or_insert if $object->is_changed;
+    # Update if %other_methods because of possible custom update method
+    $object->update_or_insert if ( $object->is_changed || keys %other_methods );
     $object->discard_changes;
 
     # updating many_to_many
