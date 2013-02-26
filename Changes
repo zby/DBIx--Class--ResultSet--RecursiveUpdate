@@ -1,4 +1,8 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
+0.27  Tues Feb 26, 2013
+      Do an update on the object when there are 'other_updates' in addition
+          to when the row 'is_changed' because of possible custom update methods
+
 0.26  Wed Nov 28, 2012
     - Fix multi-pk has_many bug
     - Fix has_many with where conditions
