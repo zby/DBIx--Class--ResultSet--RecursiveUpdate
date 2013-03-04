@@ -66,10 +66,11 @@ sub recursive_update {
         return $updates;
     }
 
+    my @pks = $source->primary_columns;
     if ( !defined $object &&
-        all { exists $updates->{$_} } $self->result_source->primary_columns )
+        all { exists $updates->{$_} } @pks )
     {
-        my @pks = map { $updates->{$_} } $self->result_source->primary_columns;
+        my @pks = map { $updates->{$_} } @pks;
         $object = $self->find( @pks, { key => 'primary' } );
     }
     elsif ( !defined $object && exists $updates->{id} ) {
@@ -82,7 +83,7 @@ sub recursive_update {
     # the updates hashref might contain the pk columns
     # but with an undefined value
     my @missing =
-        grep { !defined $updates->{$_} && !exists $fixed_fields{$_} } $source->primary_columns;
+        grep { !defined $updates->{$_} && !exists $fixed_fields{$_} } @pks;
 
     if ( !defined $object && scalar @missing == 0 ) {
         $object = $self->find( $updates, { key => 'primary' } );
@@ -187,7 +188,7 @@ sub recursive_update {
         # TODO: only first pk col is used
         my ($pk) = _get_pk_for_related( $self, $name );
         my @rows;
-        my $result_source = $object->$name->result_source;
+        my $rel_source = $object->$name->result_source;
         my @updates;
         if ( defined $value && ref $value eq 'ARRAY' ) {
             @updates = @{$value};
@@ -205,12 +206,12 @@ sub recursive_update {
             elsif ( ref $elem eq 'HASH' ) {
                 push @rows,
                     recursive_update(
-                    resultset => $result_source->resultset,
+                    resultset => $rel_source->resultset,
                     updates   => $elem
                     );
             }
             else {
-                push @rows, $result_source->resultset->find( { $pk => $elem } );
+                push @rows, $rel_source->resultset->find( { $pk => $elem } );
             }
         }
         my $set_meth = 'set_' . $name;
@@ -433,16 +434,16 @@ sub _delete_empty_auto_increment {
 
 sub _get_pk_for_related {
     my ( $self, $relation ) = @_;
-    my $result_source;
+    my $source;
     if ( $self->result_source->has_relationship($relation) ) {
-        $result_source = $self->result_source->related_source($relation);
+        $source = $self->result_source->related_source($relation);
     }
 
     # many to many case
     if ( is_m2m( $self, $relation ) ) {
-        $result_source = get_m2m_source( $self, $relation );
+        $source = get_m2m_source( $self, $relation );
     }
-    return $result_source->primary_columns;
+    return $source->primary_columns;
 }
 
 # This function determines whether a relationship should be done before or
