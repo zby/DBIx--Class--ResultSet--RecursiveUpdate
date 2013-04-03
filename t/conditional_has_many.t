@@ -12,7 +12,8 @@ my $schema = AnotherTestDB::OnePK::Schema->connect('dbi:SQLite:dbname=:memory:')
 isa_ok $schema, 'DBIx::Class::Schema';
 
 lives_ok( sub{
-	$schema->deploy({add_drop_table => 1});
+	#$schema->deploy({add_drop_table => 1});
+	$schema->deploy();
 	$schema->populate('Item', [
 		[ qw/idcol/ ],
 		[ 1 ],
@@ -52,7 +53,8 @@ $schema = AnotherTestDB::TwoPK::Schema->connect('dbi:SQLite:dbname=:memory:');
 isa_ok $schema, 'DBIx::Class::Schema';
 
 lives_ok( sub{
-	$schema->deploy({add_drop_table => 1});
+	#$schema->deploy({add_drop_table => 1});
+	$schema->deploy();
 	$schema->populate('Item', [
 		[ qw/idcol/ ],
 		[ 1 ],
