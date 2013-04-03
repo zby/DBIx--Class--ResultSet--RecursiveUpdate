@@ -2,17 +2,17 @@
 #
 # I am using DebugObject in t/lib to catch the DBIC debug output
 # and regexes to check the messages in order to find out what RU
-# realy did. 
+# realy did.
 #
 # I think that this is a bad Idea. If the queries produced by
-# DBIC change in the future, these tests might fail even though 
+# DBIC change in the future, these tests might fail even though
 # DBIC and RU still behave the same.
 #
 # I currently have no better idea how to find out weather RU
-# called set_$rel for M2Ms or not. 
+# called set_$rel for M2Ms or not.
 # (It shouldn't if IntrospectableM2M is in use)
-# 
-# I prefered this solution over monkeypatching DBIC, which was my 
+#
+# I prefered this solution over monkeypatching DBIC, which was my
 # second idea. Any hints are highly welcome!
 #
 # - lukast
@@ -50,8 +50,8 @@ ok ! $tag_rs->result_class->can("_m2m_metadata"), "tag-rs has no m2m metadata";
 my $dvd_item = $dvd_rs->first;
 
 
-# 
-# adding one 
+#
+# adding one
 #
 
 my $tag_ids = [$dvd_item->tags_rs->get_column("id")->all];
@@ -74,8 +74,8 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 1, "add one: update exec
 
 is $dvd_item->tags_rs->count, 3, "add one: DVD item has 3 tags";
 
-# 
-# removing one 
+#
+# removing one
 #
 
 shift @$tag_ids;
@@ -96,8 +96,8 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 0, "remove one: update e
 is $dvd_item->tags_rs->count, 2, "remove one: DVD item has 2 tags";
 
 
-# 
-# adding recursive 
+#
+# adding recursive
 #
 
 #push @$tag_ids, ( 4, 5, 6 );
@@ -105,7 +105,7 @@ is $dvd_item->tags_rs->count, 2, "remove one: DVD item has 2 tags";
 %updates = (
 	id => $dvd_item->id,
 	tags => [
-            (map { { name => $_->name, id => $_->id } } $dvd_item->tags->all) , 
+            (map { { name => $_->name, id => $_->id } } $dvd_item->tags->all) ,
             { name => "winnie" },
             { name => "fanny" },
             { name => "sammy" },
@@ -123,8 +123,8 @@ is $dbic_trace->count_messages("^INSERT INTO tag "), 3, "add several: update exe
 
 is $dvd_item->tags_rs->count, 5, "add several: DVD item has 5 tags";
 
-# 
-# updating recursive 
+#
+# updating recursive
 #
 
 #push @$tag_ids, ( 4, 5, 6 );
@@ -132,7 +132,7 @@ is $dvd_item->tags_rs->count, 5, "add several: DVD item has 5 tags";
 %updates = (
 	id => $dvd_item->id,
 	tags => [
-            (map { { name => $_->name."_Changed", id => $_->id } } $dvd_item->tags->all) , 
+            (map { { name => $_->name."_Changed", id => $_->id } } $dvd_item->tags->all) ,
     ],
 );
 
@@ -148,15 +148,15 @@ is $dbic_trace->count_messages("^UPDATE tag "), 5, "add several: update executed
 is $dvd_item->tags_rs->count, 5, "add several: DVD item has 5 tags";
 
 
-# 
-# updating and removing 
+#
+# updating and removing
 #
 
 
 %updates = (
 	id => $dvd_item->id,
 	tags => [
-            (map { { name => $_->name."More", id => $_->id } } $dvd_item->tags->all) , 
+            (map { { name => $_->name."More", id => $_->id } } $dvd_item->tags->all) ,
     ],
 );
 
@@ -174,15 +174,15 @@ is $dbic_trace->count_messages("^UPDATE tag "), 3, "add several: update executed
 is $dvd_item->tags_rs->count, 3, "add several: DVD item has 3 tags";
 
 
-# 
-# updating and adding 
+#
+# updating and adding
 #
 
 
 %updates = (
 	id => $dvd_item->id,
 	tags => [
-            (map { { name => $_->name."More", id => $_->id } } $dvd_item->tags->all) , 
+            (map { { name => $_->name."More", id => $_->id } } $dvd_item->tags->all) ,
             { name => "rob" },
             { name => "bot" },
     ],
@@ -201,7 +201,7 @@ is $dbic_trace->count_messages("^UPDATE tag "), 3, "add several: update executed
 is $dvd_item->tags_rs->count, 5, "add several: DVD item has 5 tags";
 
 
-# 
+#
 # removing several
 #
 
@@ -222,7 +222,7 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 0, "remove several: upda
 is $dvd_item->tags_rs->count, 2, "remove several: DVD item has 2 tags";
 
 
-# 
+#
 # empty arrayref
 #
 
@@ -241,7 +241,7 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 0, "remove all: update e
 
 is $dvd_item->tags_rs->count, 0, "remove all: DVD item has no tags";
 
-# 
+#
 # old set_$rel behaviour
 #
 
@@ -283,8 +283,8 @@ is $dvd_item->tags_rs->count, 2, "remove several: DVD item has 2 tags";
 my $tag_item = $tag_rs->first;
 
 
-# 
-# adding one 
+#
+# adding one
 #
 
 my $dvd_ids = [$tag_item->dvds_rs->get_column("dvd_id")->all];
@@ -307,8 +307,8 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 3, "add one: update exec
 
 is $tag_item->dvds_rs->count, 3, "add one: tag item has 3 dvds";
 
-# 
-# removing one 
+#
+# removing one
 #
 
 shift @$dvd_ids;
@@ -329,8 +329,8 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 2, "remove one: update e
 is $tag_item->dvds_rs->count, 2, "remove one: tag item has 2 dvds";
 
 
-# 
-# adding recursive 
+#
+# adding recursive
 #
 
 #push @$dvd_ids, ( 4, 5, 6 );
@@ -338,7 +338,7 @@ is $tag_item->dvds_rs->count, 2, "remove one: tag item has 2 dvds";
 %updates = (
 	id => $tag_item->id,
 	dvds => [
-            (map { { name => $_->name, id => $_->id } } $tag_item->dvds->all) , 
+            (map { { name => $_->name, id => $_->id } } $tag_item->dvds->all) ,
             { name => "winnie", owner => 1 },
             { name => "fanny" , owner => 1},
             { name => "sammy" , owner => 1},
@@ -357,7 +357,7 @@ is $dbic_trace->count_messages("^INSERT INTO dvd "), 3, "add several: update exe
 is $tag_item->dvds_rs->count, 5, "add several: tag item has 5 dvds";
 
 
-# 
+#
 # removing several
 #
 
@@ -378,7 +378,7 @@ is $dbic_trace->count_messages("^INSERT INTO dvdtag "), 2, "remove several: upda
 is $tag_item->dvds_rs->count, 2, "remove several: tag item has 2 dvds";
 
 
-# 
+#
 # empty arrayref
 #
 

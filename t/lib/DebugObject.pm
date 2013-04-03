@@ -23,7 +23,7 @@ sub grep_messages{
 sub get_messages{
 	$_[0]->{messages};
 }
-	
+
 
 sub count_messages{
 	my ($self, $grep) = @_;

@@ -756,18 +756,18 @@ When the array contains elements they are updated if they exist, created when
 not and deleted if not included.
 
 RecursiveUpdate defaults to
-calling 'set_$rel' to update many-to-many relationships. 
+calling 'set_$rel' to update many-to-many relationships.
 See L<DBIx::Class::Relationship/many_to_many> for details.
 set_$rel effectively removes and re-adds all relationship data,
 even if the set of related items did not change at all.
 
-If L<DBIx::Class::IntrospectableM2M> is in use, RecursiveUpdate will 
+If L<DBIx::Class::IntrospectableM2M> is in use, RecursiveUpdate will
 look up the corresponding has_many relationship and use this to recursively
-update the many-to-many relationship. 
+update the many-to-many relationship.
 
-While both mechanisms have the same final result, deleting and re-adding 
+While both mechanisms have the same final result, deleting and re-adding
 all relationship data can have unwanted consequences if triggers or
-method modifiers are defined or logging modules like L<DBIx::Class::AuditLog> 
+method modifiers are defined or logging modules like L<DBIx::Class::AuditLog>
 are in use.
 
 The traditional "set_$rel" behaviour can be forced by passing
@@ -828,7 +828,7 @@ Clearing the relationship:
         tags => [],
     });
 
-Make sure that set_$rel used to update many-to-many relationships 
+Make sure that set_$rel used to update many-to-many relationships
 even if IntrospectableM2M is loaded:
 
     my $dvd = $dvd_rs->recursive_update( {
