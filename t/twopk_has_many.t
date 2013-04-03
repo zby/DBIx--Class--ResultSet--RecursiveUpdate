@@ -13,7 +13,7 @@ my $schema = TwoPkHasManyDB::Schema->connect('dbi:SQLite:dbname=:memory:');
 isa_ok $schema, 'DBIx::Class::Schema';
 
 lives_ok( sub{
-	$schema->deploy({add_drop_table => 1});
+	$schema->deploy();
 	$schema->populate('Item', [
 		[ qw/id/ ],
 		[ 1 ],
