@@ -2,7 +2,6 @@ package # hide from PAUSE
     DBICTest::Schema::Track;
 
 use base 'DBIx::Class::Core';
-__PACKAGE__->load_components(qw/InflateColumn::DateTime/);
 
 __PACKAGE__->table('track');
 __PACKAGE__->add_columns(

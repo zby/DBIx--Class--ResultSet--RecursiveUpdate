@@ -1,4 +1,7 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
+0.29 Thu May 2, 2013
+      Remove DBIx::Class::InflateColumn::FS dependency
+
 0.28  Wed Apr 3, 2013
       Don't delete and re-add all many-to-many rows. Transform m2m data to recursive has_many data
       if IntrospectableM2M is loaded.
