@@ -33,8 +33,10 @@ __PACKAGE__->add_columns(
 __PACKAGE__->set_primary_key('cdid');
 __PACKAGE__->add_unique_constraint([ qw/artist title/ ]);
 
-__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist', undef, { 
-    is_deferrable => 1, 
+__PACKAGE__->belongs_to( artist => 'DBICTest::Schema::Artist',
+    {artistid => "artist"}, {
+    is_deferrable => 1,
+    accessor => "single",
 });
 
 # in case this is a single-cd it promotes a track from another cd

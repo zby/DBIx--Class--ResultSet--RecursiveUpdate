@@ -370,10 +370,15 @@ sub _update_relation {
             elsif ( $info->{attrs}{accessor} eq 'single' &&
                 defined $object->$name )
             {
+                my $no_new_object = 0;
+                my @pks = $related_resultset->result_source->primary_columns;
+                if ( all { exists $updates->{$_} } @pks ) {
+                    $no_new_object = 1;
+                }
                 $sub_object = recursive_update(
                     resultset => $related_resultset,
                     updates   => $updates,
-                    object    => $object->$name
+                    $no_new_object ? () : (object => $object->$name),
                 );
             }
             else {
@@ -650,6 +655,16 @@ Clearing the relationship (only works if cols are nullable!):
     my $dvd = $dvd_rs->recursive_update( {
         id    => 1,
         owner => undef,
+    });
+
+Updating a relationship including its (full) primary key:
+
+    my $dvd = $dvd_rs->recursive_update( {
+        id    => 1,
+        owner => {
+            id   => 2,
+            name => "George",
+        },
     });
 
 =head2 Treatment of might_have relationships
