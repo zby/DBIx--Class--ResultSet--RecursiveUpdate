@@ -1,4 +1,7 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
+0.30  Fri Jun 7, 2013
+       update foreign key instead of related object when all PKs are set on a relationship with accessor single or filter
+
 0.29 Thu May 2, 2013
       Remove DBIx::Class::InflateColumn::FS dependency
 

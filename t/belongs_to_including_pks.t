@@ -36,6 +36,30 @@ eval {
 };
 is( $@, '', 'new cd created without clash on related artist' );
 
+
+diag
+    'The same as the last test, but on a relationship with accessor "single".';
+eval {
+    my $new_lyrics_hashref = {
+        lyric_id => 1,
+        track    => { trackid => 4 }
+    };
+
+    my $new_lyric = $schema->resultset("Lyrics")->recursive_update($new_lyrics_hashref);
+    is( $new_lyric->track->trackid, 4, 'new id retained okay' );
+};
+
+eval {
+    my $updated_lyric = $schema->resultset("Lyrics")->recursive_update(
+        {
+            lyric_id => 1,
+            track    => { trackid => 5 }
+        }
+    );
+    is( $updated_lyric->track->trackid, 5, 'related artist changed correctly' );
+};
+is( $@, '', 'new cd created without clash on related artist' );
+
 done_testing;
 
 # vim: set ft=perl ts=4 expandtab:

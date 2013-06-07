@@ -93,7 +93,7 @@ sub recursive_update {
     }
 
     # add the resolved columns to the updates hashref
-    $updates = { %$updates, %$resolved };
+    $updates = { %$resolved, %$updates };
 
     # the resolved hashref might contain the pk columns
     # but with an undefined value
