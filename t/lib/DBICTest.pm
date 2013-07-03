@@ -1,4 +1,4 @@
-package # hide from PAUSE 
+package # hide from PAUSE
     DBICTest;
 
 use strict;
@@ -7,42 +7,20 @@ use DBICTest::Schema;
 
 =head1 NAME
 
-DBICTest - Library to be used by DBIx::Class test scripts.
+DBICTest - Custom RU package for testing a schema
 
 =head1 SYNOPSIS
 
   use lib qw(t/lib);
   use DBICTest;
   use Test::More;
-  
+
   my $schema = DBICTest->init_schema();
 
 =head1 DESCRIPTION
 
-This module provides the basic utilities to write tests against 
+This module provides the basic utilities to write tests against
 DBIx::Class.
-
-=head1 METHODS
-
-=head2 init_schema
-
-  my $schema = DBICTest->init_schema(
-    no_deploy=>1,
-    no_populate=>1,
-    storage_type=>'::DBI::Replicated',
-    storage_type_args=>{
-    	balancer_type=>'DBIx::Class::Storage::DBI::Replicated::Balancer::Random'
-    },
-  );
-
-This method removes the test SQLite database in t/var/DBIxClass.db 
-and then creates a new, empty database.
-
-This method will call deploy_schema() by default, unless the 
-no_deploy flag is set.
-
-Also, by default, this method will call populate_schema() by 
-default, unless the no_deploy or no_populate flags are set.
 
 =cut
 
@@ -84,39 +62,15 @@ sub init_schema {
     my %args = @_;
 
     my $schema;
-    
-    if ($args{compose_connection}) {
-      $schema = DBICTest::Schema->compose_connection(
-                  'DBICTest', $self->_database(%args)
-                );
-    } else {
-      $schema = DBICTest::Schema->compose_namespace('DBICTest');
-    }
-    if( $args{storage_type}) {
-    	$schema->storage_type($args{storage_type});
-    }    
-    if ( !$args{no_connect} ) {
-      $schema = $schema->connect($self->_database(%args));
-      $schema->storage->on_connect_do(['PRAGMA synchronous = OFF'])
-       unless $self->has_custom_dsn;
-    }
-    if ( !$args{no_deploy} ) {
-        __PACKAGE__->deploy_schema( $schema, $args{deploy_args} );
-        __PACKAGE__->populate_schema( $schema )
-         if( !$args{no_populate} );
-    }
+
+    $schema = DBICTest::Schema->compose_namespace('DBICTest');
+    $schema = $schema->connect($self->_database(%args));
+    $self->deploy_schema( $schema, $args{deploy_args} );
+    $self->populate_schema( $schema );
     return $schema;
 }
 
 =head2 deploy_schema
-
-  DBICTest->deploy_schema( $schema );
-
-This method does one of two things to the schema.  It can either call 
-the experimental $schema->deploy() if the DBICTEST_SQLT_DEPLOY environment 
-variable is set, otherwise the default is to read in the t/lib/sqlite.sql 
-file and execute the SQL within. Either way you end up with a fresh set 
-of tables for testing.
 
 =cut
 
@@ -125,19 +79,17 @@ sub deploy_schema {
     my $schema = shift;
     my $args = shift || {};
 
-    if ($ENV{"DBICTEST_SQLT_DEPLOY"}) { 
-        $schema->deploy($args);    
-    } else {
-        open IN, "t/lib/sqlite.sql";
-        my $sql;
-        { local $/ = undef; $sql = <IN>; }
-        close IN;
-        for my $chunk ( split (/;\s*\n+/, $sql) ) {
-          if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
-            $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
-          }
-        }
+    open IN, "t/lib/sqlite.sql";
+    my $sql;
+    { local $/ = undef; $sql = <IN>; }
+    close IN;
+    $schema->storage->txn_begin;
+    for my $chunk ( split (/;\s*\n+/, $sql) ) {
+      if ( $chunk =~ / ^ (?! --\s* ) \S /xm ) {  # there is some real sql in the chunk - a non-space at the start of the string which is not a comment
+        $schema->storage->dbh->do($chunk) or print "Error on SQL: $chunk\n";
+      }
     }
+    $schema->storage->txn_commit;
     return;
 }
 
@@ -145,7 +97,7 @@ sub deploy_schema {
 
   DBICTest->populate_schema( $schema );
 
-After you deploy your schema you can use this method to populate 
+After you deploy your schema you can use this method to populate
 the tables with test data.
 
 =cut
@@ -239,10 +191,10 @@ sub populate_schema {
         [ 1, 2 ],
         [ 1, 3 ],
     ]);
-    
+
     $schema->populate('TreeLike', [
         [ qw/id parent name/ ],
-        [ 1, undef, 'root' ],        
+        [ 1, undef, 'root' ],
         [ 2, 1, 'foo'  ],
         [ 3, 2, 'bar'  ],
         [ 6, 2, 'blop' ],
@@ -290,7 +242,7 @@ sub populate_schema {
         [ 1, "Tools" ],
         [ 2, "Body Parts" ],
     ]);
-    
+
     $schema->populate('TypedObject', [
         [ qw/objectid type value/ ],
         [ 1, "pointy", "Awl" ],

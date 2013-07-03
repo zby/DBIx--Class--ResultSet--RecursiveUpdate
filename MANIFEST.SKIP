@@ -8,7 +8,6 @@
 .gitignore$
 ^*.tar.gz$
 ^*.bak$
-^t/lib/DBICTest
 ^*.new$
 ^*.old$
 ^t/96multi_create.t$

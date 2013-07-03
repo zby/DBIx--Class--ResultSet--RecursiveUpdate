@@ -1,10 +1,3 @@
--- 
--- Created by SQL::Translator::Producer::SQLite
--- Created on Sun Nov 23 13:27:13 2008
--- 
-BEGIN TRANSACTION;
-
-
 --
 -- Table: artist
 --
@@ -412,5 +405,3 @@ CREATE TABLE typed_object (
   value varchar(100) NOT NULL
 );
 
-
-COMMIT;
