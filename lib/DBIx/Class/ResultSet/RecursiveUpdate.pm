@@ -93,7 +93,7 @@ sub recursive_update {
     }
 
     # add the resolved columns to the updates hashref
-    $updates = { %$resolved, %$updates };
+    $updates = { %$updates, %$resolved };
 
     # the resolved hashref might contain the pk columns
     # but with an undefined value
@@ -364,17 +364,19 @@ sub _update_relation {
         $info->{attrs}{accessor} eq 'filter' ) {
         my $sub_object;
         if ( ref $updates ) {
+        
+            my $no_new_object = 0;
+            my @pks = $related_resultset->result_source->primary_columns;
+            if ( all { exists $updates->{$_} } @pks ) {
+                $no_new_object = 1;
+            }
+            
             if ( blessed($updates) && $updates->isa('DBIx::Class::Row') ) {
                 $sub_object = $updates;
             }
             elsif ( $info->{attrs}{accessor} eq 'single' &&
                 defined $object->$name )
             {
-                my $no_new_object = 0;
-                my @pks = $related_resultset->result_source->primary_columns;
-                if ( all { exists $updates->{$_} } @pks ) {
-                    $no_new_object = 1;
-                }
                 $sub_object = recursive_update(
                     resultset => $related_resultset,
                     updates   => $updates,
@@ -385,7 +387,7 @@ sub _update_relation {
                 $sub_object = recursive_update(
                     resultset => $related_resultset,
                     updates   => $updates,
-                    resolved  => $resolved
+                    $no_new_object ? () : (resolved  => $resolved),
                 );
             }
         }
