@@ -35,7 +35,7 @@ isa_ok $storage, "DBIx::Class::Storage";
 
 my $dbic_trace = DebugObject->new;
 $storage->debug(1);
-$storage->debugfh($dbic_trace);
+$storage->debugcb(sub { $dbic_trace->print($_[1]) });
 
 my $dvd_rs  = $schema->resultset('Dvd');
 my $tag_rs = $schema->resultset('Tag');

@@ -1,4 +1,7 @@
 Revision history for DBIx::Class::ResultSet::RecursiveUpdate
+
+    - Fixed failing test when DBIC_TRACE_PROFILE is set
+
 0.30  Fri Jun 7, 2013
     - Update foreign key instead of related object when all PKs are set on a
       relationship with accessor single or filter
