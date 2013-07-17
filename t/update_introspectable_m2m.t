@@ -2,7 +2,7 @@
 #
 # I am using DebugObject in t/lib to catch the DBIC debug output
 # and regexes to check the messages in order to find out what RU
-# realy did.
+# really did.
 #
 # I think that this is a bad Idea. If the queries produced by
 # DBIC change in the future, these tests might fail even though
